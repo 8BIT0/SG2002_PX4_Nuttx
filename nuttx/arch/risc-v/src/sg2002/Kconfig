@@ -1,0 +1,3 @@
+config SG2002_QEMU_SIM
+    bool "qemu sim"
+    default n

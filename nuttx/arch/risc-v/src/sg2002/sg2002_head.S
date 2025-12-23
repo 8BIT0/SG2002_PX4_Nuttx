@@ -36,10 +36,13 @@
 /****************************************************************************
  * Public Symbols
  ****************************************************************************/
-
   	/* Exported Symbols */
+.org 0
+	.extern __trap_vec
 	.section .vectors, "ax"
 	.global __start
+	.global sg2002_trace
+	.type __start,@function
 
 __start:
 	# Continue primary hart
@@ -47,13 +50,30 @@ __start:
 	li   a1, SG2002_PRIM_HART
 	bne  a0, a1, infinity_loop
 
-    la   sp, SG2002_IDLESTACK_TOP
+	la   sp, SG2002_IDLESTACK_TOP
+
+	# invalidate all memory for BTB,BHT,DCACHE,ICACHE
+	li x3, 0x30013
+	csrs mcor, x3
+
+	# enable ICACHE,DCACHE,BHT,BTB,RAS,WA
+	li x3, 0x7f
+	csrs mhcr, x3
+
+	# enable data_cache_prefetch, amr
+	li x3, 0x610c
+	csrs mhint, x3 #mhint
 
   	csrw mie, zero			# disable all interrupts enable
 	csrw mip, zero			# clear all pending interrupts
 
 	li   x3, ((0x1 << 13) | (0x03 << 11))
 	csrs CSR_MSTATUS, x3	# enable floating point set MPP to machine mode
+
+    fsflags      zero
+    fsrm         zero
+
+    fence.i
 
 	la   t0, __trap_vec
 	csrw mtvec, t0			# set the trap vector

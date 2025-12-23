@@ -101,10 +101,6 @@ void sg2002_start(int mhartid)
 {
   	DEBUGASSERT(mhartid == 0); /* Only Hart 0 supported for now */
   
-	/* enable FPU */
-
-  	riscv_fpuconfig();
-
   	if (0 == mhartid)
     {
       	/* Clear the BSS */
@@ -116,13 +112,9 @@ void sg2002_start(int mhartid)
 
   	/* Start M-mode */
 
-	showprogress('A');
-
 #ifdef USE_EARLYSERIALINIT
   	riscv_earlyserialinit();
 #endif
-
-  	showprogress('B');
 
   	/* Call nx_start() */
 

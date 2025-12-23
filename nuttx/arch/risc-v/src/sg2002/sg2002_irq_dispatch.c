@@ -50,7 +50,6 @@
 /****************************************************************************
  * riscv_dispatch_irq
  ****************************************************************************/
-extern void sg2002_debug_log(const char *s);
 
 void *riscv_dispatch_irq(uintptr_t vector, uintptr_t *regs)
 {
@@ -71,13 +70,8 @@ void *riscv_dispatch_irq(uintptr_t vector, uintptr_t *regs)
 
   if (RISCV_IRQ_EXT != irq)
     {
+
       /* Deliver the IRQ */
-      // char b[256] = {'\0'};
-      // if (irq != 23)
-      // {
-      //   sprintf(b, "irq %d\r\n", irq);
-      //   sg2002_debug_log(b);
-      // }
 
       regs = riscv_doirq(irq, regs);
     }

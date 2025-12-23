@@ -62,6 +62,13 @@ void up_irqinitialize(void)
 
   putreg32(0x0, SG2002_PLIC_ENABLE1);
   putreg32(0x0, SG2002_PLIC_ENABLE2);
+  putreg32(0x0, SG2002_PLIC_ENABLE3);
+  putreg32(0x0, SG2002_PLIC_ENABLE4);
+  
+  putreg32(0x0, SG2002_PLIC_PENDING1);
+  putreg32(0x0, SG2002_PLIC_PENDING2);
+  putreg32(0x0, SG2002_PLIC_PENDING3);
+  putreg32(0x0, SG2002_PLIC_PENDING4);
 
   /* Set priority for all global interrupts to 1 (lowest) */
 

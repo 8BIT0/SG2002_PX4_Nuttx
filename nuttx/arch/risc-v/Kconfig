@@ -105,7 +105,6 @@ config ARCH_CHIP_SG2002
 	bool "SiFive SG2002"
 	select ARCH_RV64
 	select ARCH_RV_ISA_M
-	select ARCH_RV_ISA_A
 	select ARCH_RV_ISA_C
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU

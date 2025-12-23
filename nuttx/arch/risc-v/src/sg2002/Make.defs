@@ -28,4 +28,4 @@ HEAD_ASRC = sg2002_head.S
 
 # Specify our C code within this directory to be included
 CHIP_CSRCS  = sg2002_start.c sg2002_irq_dispatch.c sg2002_irq.c sg2002_timerisr.c
-CHIP_CSRCS += sg2002_serial.c sg2002_allocateheap.c
+CHIP_CSRCS += sg2002_serial.c sg2002_allocateheap.c sg2002_mmio.c sg2002_debug.c

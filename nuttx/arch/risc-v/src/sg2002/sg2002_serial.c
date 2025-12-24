@@ -120,8 +120,6 @@ typedef struct {
 } SG2002_Uart_TypeDef;
 
 static inline bool sg2002_check_uart_base(uint32_t base);
-static uint32_t sg2002_get_reg(struct uart_dev_s *dev, uint32_t offset);
-static void sg2002_set_reg(struct uart_dev_s *dev, uint32_t offset, uint32_t value);
 static int sg2002_interrupt(int irq, void *context, void *arg);
 
 static void dummy9(struct uart_dev_s *dev);
@@ -240,8 +238,6 @@ static void sg2002_detach(struct uart_dev_s *dev) {
 static int sg2002_uart_setup(struct uart_dev_s *dev) {
 	SG2002_Uart_TypeDef *priv = (SG2002_Uart_TypeDef *)dev;
     volatile struct dw_regs *uart = NULL;
-
-    uint32_t lcr_value = 0;
 
     if ((priv == NULL) || !sg2002_check_uart_base(priv->uartbase)) {
         return -1;
@@ -401,16 +397,10 @@ static int sg2002_interrupt(int irq, void *context, void *arg) {
 }
 
 static int sg2002_ioctl(struct file *filep, int cmd, unsigned long arg) {
-    struct inode *inode = NULL;
-    struct uart_dev_s *dev = NULL;
-
     if ((filep == NULL) || \
         (filep->f_inode == NULL) || \
         (filep->f_inode->i_private == NULL))
         return -1;
-    
-    inode = filep->f_inode;
-    dev = inode->i_private;
 
     switch (cmd)
     {

@@ -2,6 +2,7 @@
 #ifndef __SG2002_DEBUG_H
 #define __SG2002_DEBUG_H
 
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>

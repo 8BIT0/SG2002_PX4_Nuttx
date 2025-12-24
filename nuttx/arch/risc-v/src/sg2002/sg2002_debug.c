@@ -5,8 +5,8 @@
 
 #define TRACE_HEADER        "[ 8B!T0 trace ] "
 
-static uint8_t trace_print_buff[TRACE_BUF_SIZE];
-static uint8_t header[TRACE_HEADER_SIZE];
+static char trace_print_buff[TRACE_BUF_SIZE];
+static char header[TRACE_HEADER_SIZE];
 
 void sg2002_trace(char *fmt, ...) {
     va_list args;

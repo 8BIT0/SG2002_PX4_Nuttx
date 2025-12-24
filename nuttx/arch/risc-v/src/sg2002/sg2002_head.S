@@ -45,30 +45,32 @@
 	.type __start,@function
 
 __start:
-	# Continue primary hart
+	/* Continue primary hart */
 	csrr a0, mhartid
 	li   a1, SG2002_PRIM_HART
 	bne  a0, a1, infinity_loop
 
 	la   sp, SG2002_IDLESTACK_TOP
 
-	# invalidate all memory for BTB,BHT,DCACHE,ICACHE
+#ifndef CONFIG_SG2002_QEMU_SIM 
+	/* invalidate all memory for BTB,BHT,DCACHE,ICACHE */
 	li x3, 0x30013
 	csrs mcor, x3
 
-	# enable ICACHE,DCACHE,BHT,BTB,RAS,WA
+	/* enable ICACHE,DCACHE,BHT,BTB,RAS,WA */
 	li x3, 0x7f
 	csrs mhcr, x3
 
-	# enable data_cache_prefetch, amr
+	/* enable data_cache_prefetch, amr */
 	li x3, 0x610c
 	csrs mhint, x3 #mhint
+#endif
 
-  	csrw mie, zero			# disable all interrupts enable
-	csrw mip, zero			# clear all pending interrupts
+  	csrw mie, zero			/* disable all interrupts enable */
+	csrw mip, zero			/* clear all pending interrupts  */
 
 	li   x3, ((0x1 << 13) | (0x03 << 11))
-	csrs CSR_MSTATUS, x3	# enable floating point set MPP to machine mode
+	csrs CSR_MSTATUS, x3	/* enable floating point set MPP to machine mode */
 
     fsflags      zero
     fsrm         zero
@@ -76,9 +78,9 @@ __start:
     fence.i
 
 	la   t0, __trap_vec
-	csrw mtvec, t0			# set the trap vector
+	csrw mtvec, t0			/* set the trap vector        */
 
-  	jal	 x1, sg2002_start	# jump to the start function
+  	jal	 x1, sg2002_start	/* jump to the start function */
 
 	/* We shouldn't return from _start */
 

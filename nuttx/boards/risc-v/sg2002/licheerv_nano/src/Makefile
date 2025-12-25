@@ -25,5 +25,18 @@ include $(TOPDIR)/Make.defs
 RCSRCS = etc/init.d/rc.sysinit etc/init.d/rcS
 
 CSRCS = sg2002_appinit.c
+CSRCS += nsh_romfsimg.c
+
+NXTOOLDIR = $(TOPDIR)/tools
+GENCROMFSSRC = gencromfs.c
+GENCROMFSEXE = gencromfs$(HOSTEXEEXT)
+
+# Build gencromfs tool
+
+$(NXTOOLDIR)$(DELIM)$(GENCROMFSEXE): $(NXTOOLDIR)$(DELIM)$(GENCROMFSSRC)
+	$(Q) $(MAKE) -C $(NXTOOLDIR) -f Makefile.host $(GENCROMFSEXE)
+
+nsh_romfsimg.c: $(NXTOOLDIR)$(DELIM)$(GENCROMFSEXE)
+	$(Q) $(NXTOOLDIR)$(DELIM)$(GENCROMFSEXE) etc nsh_romfsimg.c
 
 include $(TOPDIR)/boards/Board.mk

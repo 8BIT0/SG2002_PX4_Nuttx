@@ -30,9 +30,6 @@ how to run
 
 terminal 1 will print info 
 
-    ABnsh: sysinit: fopen failed: No such file or directory
-    nsh: mkrd: boardctl(BOARDIOC_MKRD) failed: Operation not permitted
-
     NuttShell (NSH) NuttX-11.0.0
     nsh>
 

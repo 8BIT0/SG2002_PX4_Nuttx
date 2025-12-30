@@ -2,13 +2,13 @@ Auther:8_B!T0
 
 porting NUTTX (886ac) OS to SG2002 little core (700Mhz core)
 
-QEMU SIMULATION
-    sim hardware
-        licheerv nano (sg2002)
+hardware: licheerv nano (sg2002)
 
-    essential toolchain
+essential toolchain
     1. riscv64-unknown-elf-gcc
     2. riscv64-unknown-elf-gdb
+
+QEMU SIMULATION
 
     qemu version 10.0.3
 

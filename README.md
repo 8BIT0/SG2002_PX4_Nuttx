@@ -14,8 +14,8 @@ essential toolchain
 qemu version 10.0.3
 
 how to run
-1. cd to nutx folder input
-- tools/configure.sh licheerv_nano:sim
+1. cd to nuttx folder and input
+- ./tools/configure.sh licheerv_nano:sim
 
 2. make
 

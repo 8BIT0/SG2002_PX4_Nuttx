@@ -20,6 +20,7 @@ python3 fiptool.py -v genfip \
     --BLCP_IMG_RUNADDR=${BLCP_IMG_RUNADDR} \
     --BLCP_PARAM_LOADADDR=${BLCP_PARAM_LOADADDR} \
     --BLCP=bin/empty.bin \
+    --DDR_PARAM=bin/ddr_param.bin \
     --BLCP_2ND=nuttx_1.bin \
     --MONITOR=bin/fw_dynamic.bin \
     --LOADER_2ND=bin/u-boot-raw.bin \

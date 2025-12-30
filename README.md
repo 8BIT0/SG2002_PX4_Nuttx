@@ -5,8 +5,8 @@ porting NUTTX (886ac) OS to SG2002 little core (700Mhz core)
 hardware: licheerv nano (sg2002)
 
 essential toolchain
-    1. riscv64-unknown-elf-gcc
-    2. riscv64-unknown-elf-gdb
+1. riscv64-unknown-elf-gcc
+2. riscv64-unknown-elf-gdb
 
 QEMU SIMULATION
 

@@ -26,7 +26,6 @@
 #define SG2002_UART_TIMEOUT                 200
 
 #define SG2002_UART_SIM_BASE                0x10000000
-#define SG2002_UART0_BASE                   0x04140000
 #define SG2002_UART1_BASE                   0x04150000
 #define SG2002_UART2_BASE                   0x04160000
 
@@ -191,8 +190,7 @@ static inline bool sg2002_check_uart_base(uint32_t base) {
     return true;
 #endif
 
-    if ((base == SG2002_UART0_BASE) || \
-        (base == SG2002_UART1_BASE) || \
+    if ((base == SG2002_UART1_BASE) || \
         (base == SG2002_UART2_BASE))
         return true;
 

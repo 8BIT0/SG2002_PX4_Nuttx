@@ -32,4 +32,26 @@ QEMU SIMULATION
         NuttShell (NSH) NuttX-11.0.0
         nsh>
 
+LicheeRV_NANO (SG2002)
 
+    how to run
+
+    1. cd to nuttx folder and input
+    - ./tools/configure.sh licheerv_nano:nsh
+
+    2. make
+
+    3. after build successed run genbin.sh
+    - (if it`s the first time run this genbin.sh u need to " chmod +x genbin.sh " first)
+    - ./genbin.sh
+
+    4. if generated u can find fip.bin in ../py_tool/ folder
+
+    5. copy fip.bin to licheerv nano tf card in /boot/ folder
+
+    6. insert tf card to licheerv nano board
+
+    7. boot up
+    - uart0 -> linux info print
+    - uart1 -> nuttx info print
+    

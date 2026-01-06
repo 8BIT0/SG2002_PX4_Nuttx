@@ -80,7 +80,7 @@
 #define STM32_IRQ_TIM2        (STM32_IRQ_FIRST + 28) /* 28: TIM2 global interrupt */
 #define STM32_IRQ_TIM3        (STM32_IRQ_FIRST + 29) /* 29: TIM3 global interrupt */
 #define STM32_IRQ_TIM4        (STM32_IRQ_FIRST + 30) /* 30: TIM4 global interrupt */
-#define STM32_IRQ_I2C1EV      (STM32_IRQ_FIRST + 31) /* 31: I2C1 event interrupt */
+#define       (STM32_IRQ_FIRST + 31) /* 31: I2C1 event interrupt */
 #define STM32_IRQ_I2C1ER      (STM32_IRQ_FIRST + 32) /* 32: I2C1 error interrupt */
 #define STM32_IRQ_I2C2EV      (STM32_IRQ_FIRST + 33) /* 33: I2C2 event interrupt */
 #define STM32_IRQ_I2C2ER      (STM32_IRQ_FIRST + 34) /* 34: I2C2 error interrupt */

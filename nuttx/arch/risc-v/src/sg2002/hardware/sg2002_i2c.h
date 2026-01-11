@@ -3,9 +3,45 @@
 #define __ARCH_RISCV_SRC_SG2002_HARDWARE_SG2002_IIC_H
 
 #define SG2002_I2C_BUS_NUM                  2
+#define SG2002_I2C_FIFO_DEPTH                   64
 
 #define SG2002_I2C1_BASE                    0x04010000
 #define SG2002_I2C3_BASE                    0x04030000
+
+#define SG2002_IC_CLK			            166666666
+
+/* High and low times in different speed modes (in ns) */
+#define SG2002_MIN_SS_SCL_HIGHTIME          4000
+#define SG2002_MIN_SS_SCL_LOWTIME           4700
+#define SG2002_MIN_FS_SCL_HIGHTIME          600
+#define SG2002_MIN_FS_SCL_LOWTIME           1300
+
+/* int reg bit definition */
+#define SG2002_BIT_I2C_INT_RX_UNDER         (1 << 0)
+#define SG2002_BIT_I2C_INT_RX_OVER          (1 << 1)
+#define SG2002_BIT_I2C_INT_RX_FULL          (1 << 2)
+#define SG2002_BIT_I2C_INT_TX_OVER          (1 << 3)
+#define SG2002_BIT_I2C_INT_TX_EMPTY         (1 << 4)
+#define SG2002_BIT_I2C_INT_RD_REQ           (1 << 5)
+#define SG2002_BIT_I2C_INT_TX_ABRT          (1 << 6)
+#define SG2002_BIT_I2C_INT_RX_DONE          (1 << 7)
+#define SG2002_BIT_I2C_INT_ACTIVITY         (1 << 8)
+#define SG2002_BIT_I2C_INT_STOP_DET         (1 << 9)
+#define SG2002_BIT_I2C_INT_START_DET        (1 << 10)
+#define SG2002_BIT_I2C_INT_GEN_ALL          (1 << 11)
+#define SG2002_I2C_INTR_MASTER_MASK         (SG2002_BIT_I2C_INT_TX_ABRT  | \
+                                             SG2002_BIT_I2C_INT_STOP_DET | \
+                                             SG2002_BIT_I2C_INT_RX_FULL  | \
+                                             SG2002_BIT_I2C_INT_TX_EMPTY)
+                                              
+/* status reg definitions */
+#define SG2002_IC_STATUS_SA                 0x40
+#define SG2002_IC_STATUS_MA                 0x20
+#define SG2002_IC_STATUS_RFF                0x10
+#define SG2002_IC_STATUS_RFNE               0x08
+#define SG2002_IC_STATUS_TFE                0x04
+#define SG2002_IC_STATUS_TFNF               0x02
+#define SG2002_IC_STATUS_ACT                0x01
 
 #define SG2002_IC_CON_OFFSET                0x000   /* I2C control */
 #define SG2002_IC_TAR_OFFSET                0x004   /* I2C Target Addres */
@@ -46,6 +82,17 @@
 #define SG2002_IC_ENABLE_STATUS_OFFSET      0x09c   /* I2C Enable Status Regist */
 #define SG2002_IC_FS_SPKLEN_OFFSET          0x0a0   /* ISS and FS spike suppression limit */
 #define SG2002_IC_HS_SPKLEN_OFFSET          0x0a4   /* HS spike suppression limit */
+
+typedef enum {
+    SG2002_I2C_BUS_MODE_STANDARD    = 1,
+    SG2002_I2C_BUS_MODE_FAST        = 2,
+    SG2002_I2C_BUS_MODE_HIGH        = 3,
+} SG2002_I2C_BUS_MODE_TypeDef;
+
+typedef enum {
+    SG2002_I2C_BUS_WRITE            = 0,
+    SG2002_I2C_BUS_READ             = 1,
+} SG2002_I2C_BUS_TR_TypeDef;
 
 typedef union {
     struct {
@@ -138,6 +185,24 @@ typedef union {
 
     uint32_t val;
 } SG2002_IC_FS_SCL_LCNT_Reg_TypeDef;
+
+typedef union {
+    struct {
+        uint32_t ic_hs_scl_hcnt         : 16;   /* bit 0 ~ 15 : high speed i2c clock scl high count register */
+        uint32_t reserved               : 16;   /* bit 16 ~ 31 */
+    } field;
+
+    uint32_t val;
+} SG2002_IC_HS_SCL_HCNT_Reg_TypeDef;
+
+typedef union {
+    struct {
+        uint32_t ic_hs_scl_lcnt         : 16;   /* bit 0 ~ 15 : high speed i2c clock scl low count register */
+        uint32_t reserved               : 16;   /* bit 16 ~ 31 */
+    } field;
+
+    uint32_t val;
+} SG2002_IC_HS_SCL_LCNT_Reg_TypeDef;
 
 typedef union {
     struct {
@@ -351,7 +416,7 @@ typedef union {
 
 typedef union {
     struct {
-        uint32_t rxflt                  : 7;    /* bit 0 ~ 6 : I2C Receive FIFO Level Register */
+        uint32_t rxflr                  : 7;    /* bit 0 ~ 6 : I2C Receive FIFO Level Register */
         uint32_t reserved               : 25;   /* bit 7 ~ 31 */
     } field;
 

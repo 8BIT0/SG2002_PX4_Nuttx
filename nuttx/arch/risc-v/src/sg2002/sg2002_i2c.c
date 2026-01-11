@@ -17,9 +17,9 @@
 #include <nuttx/i2c/i2c_master.h>
 
 #include <arch/board/board.h>
-#include "hardware/sg2002_mmio.h"
 
-#include "sg2002_i2c.h"
+#include "hardware/sg2002_mmio.h"
+#include "sg200x.h"
 
 #define SG2002_Priv_2_BaseReg(x) (volatile sg2002_i2c_reg_TypeDef *)((uintptr_t)(x));
 
@@ -109,9 +109,11 @@ static void sg2002_i2c_sem_init(struct sg2002_i2c_priv_s *priv);
 
 /* I2C interface */
 
+#if defined(CONFIG_SG2002_I2C1) || defined(CONFIG_SG2002_I2C3)
 static const struct i2c_ops_s sg2002_i2c_ops = {
     .transfer = sg2002_i2c_transfer
 };
+#endif
 
 /* I2C device structures */
 
@@ -293,6 +295,7 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
 
     /* Enable back i2c now speed set */
     sg2002_i2c_enctl(priv, true);
+    return true;
 }
 
 static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs, int count) {
@@ -324,6 +327,7 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
 	priv->msgc = count;
 
     nxsem_post(&priv->sem_excl);
+    return 0;
 }
 
 static void sg2002_i2c_sem_init(struct sg2002_i2c_priv_s *priv) {
@@ -388,7 +392,6 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
     uint16_t rx_mem = 0;
     uint32_t buf_len = 0;
     uint8_t *buf = NULL;
-    uint32_t flags = 0;
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
     volatile SG2002_IC_TXFLR_Reg_TypeDef *i2c_txflr_reg = NULL;
     volatile SG2002_IC_RXFLR_Reg_TypeDef *i2c_rxflr_reg = NULL;
@@ -409,7 +412,6 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
 	for (uint8_t i = 0; i < num; i++) {
         buf = msgs[i].buffer;
 		buf_len = msgs[i].length;
-		flags = msgs[i].flags;
 
 		tx_mem = SG2002_I2C_FIFO_DEPTH - i2c_txflr_reg->field.txflr;
 		rx_mem = SG2002_I2C_FIFO_DEPTH - i2c_rxflr_reg->field.rxflr;
@@ -581,7 +583,7 @@ static int sg2002_i2c_irq_handle(int irq, void *context, void *arg) {
 
 tx_aborted:
 
-    if ((state & (SG2002_BIT_I2C_INT_TX_ABRT | SG2002_BIT_I2C_INT_STOP_DET)))
+    if (state & (SG2002_BIT_I2C_INT_TX_ABRT | SG2002_BIT_I2C_INT_STOP_DET))
         sg2002_i2c_enctl(priv, false);
 
     return 0;

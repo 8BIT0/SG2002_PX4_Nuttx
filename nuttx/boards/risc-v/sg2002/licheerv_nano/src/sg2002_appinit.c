@@ -37,6 +37,8 @@
 #include <sys/boardctl.h>
 #include <arch/board/board_memorymap.h>
 
+#include "sg2002_licheerv_nano.h"
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -87,7 +89,7 @@ int board_app_initialize(uintptr_t arg)
 
 #endif
 
-  return OK;
+  return sg2002_bringup();
 #endif
 }
 

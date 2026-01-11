@@ -26,6 +26,7 @@ RCSRCS = etc/init.d/rc.sysinit etc/init.d/rcS
 
 CSRCS = sg2002_appinit.c
 CSRCS += nsh_romfsimg.c
+CSRCS += sg2002_bringup.c
 
 NXTOOLDIR = $(TOPDIR)/tools
 GENCROMFSSRC = gencromfs.c

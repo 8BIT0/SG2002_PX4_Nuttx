@@ -1,4 +1,3 @@
-#pragma once
 #ifndef __SG2002_IIC_H
 #define __SG2002_IIC_H
 

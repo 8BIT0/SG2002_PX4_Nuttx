@@ -268,8 +268,6 @@ static bool sg2002_txready(struct uart_dev_s *dev) {
     SG2002_Uart_TypeDef *priv = (SG2002_Uart_TypeDef *)dev;
     volatile struct dw_regs *uart = NULL;
 
-    // sg2002_trace("tx_ready\n");
-
     if ((priv == NULL) || (priv->uartbase == 0))
         return false;
 

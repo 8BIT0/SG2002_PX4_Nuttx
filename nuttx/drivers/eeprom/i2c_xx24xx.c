@@ -391,6 +391,8 @@ static int ee24xx_open(FAR struct file *filep)
 
   /* Increment the reference count */
 
+    printf("WTF\r\n");
+
   if ((eedev->refs + 1) == 0)
     {
       ret = -EMFILE;

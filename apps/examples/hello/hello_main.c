@@ -23,7 +23,11 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <inttypes.h>
 #include <stdio.h>
+#include <fcntl.h>
+
+#include <nuttx/eeprom/i2c_xx24xx.h>
 
 /****************************************************************************
  * Public Functions
@@ -35,6 +39,18 @@
 
 int main(int argc, FAR char *argv[])
 {
-  printf("Hello 8Bit!!\n");
-  return 0;
+    int fd;
+
+    printf("Hello 8Bit!!\n");
+    fd = open("/dev/eeprom0", O_RDWR);
+    if (fd < 0) {
+        printf("Failed to open /dev/eeprom0 error code %d\n", fd);
+        return -1;
+    } else {
+        printf("/dev/eeprom0 opened successfully\n");
+    }
+
+    close(fd);
+
+    return 0;
 }

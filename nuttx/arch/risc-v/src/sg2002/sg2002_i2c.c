@@ -307,9 +307,13 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
         case SG2002_I2C_BUS_MODE_HIGH: {
             SG2002_Hs_Scl_Hcnt_Reg *ic_hs_scl_hcnt_reg = To_SG2002_Hs_Scl_Hcnt_Reg_Ptr(i2c->ic_hs_scl_hcnt);
             SG2002_Hs_Scl_Lcnt_Reg *ic_hs_scl_lcnt_reg = To_SG2002_Hs_Scl_Lcnt_Reg_Ptr(i2c->ic_hs_scl_lcnt);
+            ic_hs_scl_hcnt_reg->field.ic_hs_scl_hcnt = 0;
+            ic_hs_scl_lcnt_reg->field.ic_hs_scl_lcnt = 0;
+            sg2002_trace("reset I2C hs scl hcnt: %u, hs scl lcnt: %u\n", ic_hs_scl_hcnt_reg->field.ic_hs_scl_hcnt, ic_hs_scl_lcnt_reg->field.ic_hs_scl_lcnt);
 
             ic_hs_scl_hcnt_reg->field.ic_hs_scl_hcnt = 6;
             ic_hs_scl_lcnt_reg->field.ic_hs_scl_lcnt = 8;
+            sg2002_trace("set I2C hs scl hcnt: %u, hs scl lcnt: %u\n", ic_hs_scl_hcnt_reg->field.ic_hs_scl_hcnt, ic_hs_scl_lcnt_reg->field.ic_hs_scl_lcnt);
             break;
         }
 
@@ -317,8 +321,13 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
             SG2002_Ss_Scl_Hcnt_Reg *ic_ss_scl_hcnt_reg = To_SG2002_Ss_Scl_Hcnt_Reg_Ptr(i2c->ic_ss_scl_hcnt);
             SG2002_Ss_Scl_Lcnt_Reg *ic_ss_scl_lcnt_reg = To_SG2002_Ss_Scl_Lcnt_Reg_Ptr(i2c->ic_ss_scl_lcnt);
 
+            ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt = 0;
+            ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt = 0;
+            sg2002_trace("reset I2C ss scl hcnt: %u, ss scl lcnt: %u\n", ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt, ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt);
+
             ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt = (uint16_t)(((SG2002_IC_CLK * SG2002_MIN_SS_SCL_HIGHTIME) / 1000) - 7);
             ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt = (uint16_t)(((SG2002_IC_CLK * SG2002_MIN_SS_SCL_LOWTIME) / 1000) - 1);
+            sg2002_trace("set I2C ss scl hcnt: %u, ss scl lcnt: %u\n", ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt, ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt);
             break;
         }
 
@@ -327,16 +336,17 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
             SG2002_Fs_Scl_Hcnt_Reg *ic_fs_scl_hcnt = To_SG2002_Fs_Scl_Hcnt_Reg_Ptr(i2c->ic_fs_scl_hcnt);
             SG2002_Fs_Scl_Lcnt_Reg *ic_fs_scl_lcnt = To_SG2002_Fs_Scl_Lcnt_Reg_Ptr(i2c->ic_fs_scl_lcnt);
 
+            ic_fs_scl_hcnt->field.ic_fs_scl_hcnt = 0;
+            ic_fs_scl_lcnt->field.ic_fs_scl_lcnt = 0;
+            sg2002_trace("reset I2C fs scl hcnt: %u, fs scl lcnt: %u\n", ic_fs_scl_hcnt->field.ic_fs_scl_hcnt, ic_fs_scl_lcnt->field.ic_fs_scl_lcnt);
+            
             ic_fs_scl_hcnt->field.ic_fs_scl_hcnt = (uint16_t)(((SG2002_IC_CLK * SG2002_MIN_FS_SCL_HIGHTIME) / 1000) - 7);
             ic_fs_scl_lcnt->field.ic_fs_scl_lcnt = (uint16_t)(((SG2002_IC_CLK * SG2002_MIN_FS_SCL_LOWTIME) / 1000) - 1);
+            sg2002_trace("set I2C fs scl hcnt: %u, fs scl lcnt: %u\n", ic_fs_scl_hcnt->field.ic_fs_scl_hcnt, ic_fs_scl_lcnt->field.ic_fs_scl_lcnt);
             break;
         }
     }
     
-    sg2002_trace("I2C fs scl hcnt: %u, fs scl lcnt: %u\n",
-        i2c->ic_fs_scl_hcnt,
-        i2c->ic_fs_scl_lcnt);
-
     ic_con_reg->field.speed = i2c_speed;
 
     /* Enable back i2c now speed set */
@@ -360,7 +370,7 @@ static int sg2002_i2c_xfer_init(struct sg2002_i2c_priv_s *priv) {
 
     /* set device address */
     sg2002_i2c_enctl(priv, false);
-    ic_tar_reg->field.ic_tar = (priv->msgv->addr << 1);    
+    ic_tar_reg->field.ic_tar = (priv->msgv->addr << 1);
     sg2002_i2c_enctl(priv, true);
 
     return 0;
@@ -577,6 +587,7 @@ static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, struct i2
 
     /* Set the slave (target) address and enable 10-bit addressing mode if applicable */
     ic_tar_reg->field.ic_tar = msgs->addr;
+    sg2002_trace("xfer init device address set to 0x%02X\n", ic_tar_reg->field.ic_tar);
 
     /* Enable the adapter */
     sg2002_i2c_enctl(priv, true);

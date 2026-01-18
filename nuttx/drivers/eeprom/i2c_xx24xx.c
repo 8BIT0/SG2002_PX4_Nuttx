@@ -391,16 +391,39 @@ static int ee24xx_open(FAR struct file *filep)
 
   /* Increment the reference count */
 
-    printf("WTF\r\n");
+  struct i2c_config_s iconf;
+  
+  iconf.frequency = 400000;
+  iconf.address = 0x50;
+  iconf.addrlen   = 7; 
+  
+  uint8_t reg_addr = 0;
+  uint8_t rx_test[8] = {0};
 
-  if ((eedev->refs + 1) == 0)
-    {
+  for (uint8_t i = 0x50; i < 0x57; i ++) {
+    iconf.address = i;
+    iconf.address = (iconf.address << 1);
+    
+    memset(rx_test, 0xA5, sizeof(rx_test));
+    sg2002_trace("eeprom set address\n");
+    i2c_write(eedev->i2c, &iconf, &reg_addr, 1);
+    sg2002_trace("\n");
+
+    sg2002_trace("eeprom read address\n");
+    i2c_read(eedev->i2c, &iconf, rx_test, 8);
+    sg2002_trace("\n");
+
+    for (uint8_t t = 0; t < 8; t ++) {
+      printf(" 0x%02x ", rx_test[t]);
+    }
+    printf("\n\n");
+  }
+
+  if ((eedev->refs + 1) == 0) {
       ret = -EMFILE;
-    }
-  else
-    {
+  } else {
       eedev->refs += 1;
-    }
+  }
 
   ee24xx_semgive(eedev);
   return ret;

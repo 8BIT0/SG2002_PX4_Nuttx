@@ -38,7 +38,7 @@
 
 /* i2c1 reg */
 #define SG2002_I2C1_AF_SCL_REG              (SG2002_PINMUX_BASE + 0xD0)      /* PP 18  */
-#define SG2002_I2C1_AF_SDA_REG              (SG2002_PINMUX_BASE + 0xD4)      /* PP 21  */
+#define SG2002_I2C1_AF_SDA_REG              (SG2002_PINMUX_BASE + 0xDC)      /* PP 21  */
 
 /* i2c3 reg */
 #define SG2002_I2C3_AF_SCL_REG              (SG2002_PINMUX_BASE + 0xE0)      /* PP 22  */
@@ -69,6 +69,10 @@ typedef enum {
 
 static inline uint32_t mmio_read_32(uintptr_t addr) {
 	return readl((void *) addr);
+}
+
+static inline void mmio_write_32(uintptr_t addr, uint32_t value) {
+	writel(value, (void *) addr);
 }
 
 static inline void mmio_clrbits_32(uintptr_t addr, uint32_t clear) {

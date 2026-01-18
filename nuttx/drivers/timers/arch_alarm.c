@@ -67,6 +67,8 @@ static void udelay_accurate(useconds_t microseconds)
   timespec_from_usec(&delta, microseconds);
   clock_timespec_add(&now, &delta, &end);
 
+  /* 8B!T0 error trigger when run this function */
+
   while (clock_timespec_compare(&now, &end) < 0)
     {
       ONESHOT_CURRENT(g_oneshot_lower, &now);

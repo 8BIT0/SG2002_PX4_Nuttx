@@ -402,7 +402,7 @@ static int ee24xx_open(FAR struct file *filep)
 
   for (uint8_t i = 0x50; i < 0x57; i ++) {
     iconf.address = i;
-    iconf.address = (iconf.address << 1);
+    iconf.address = iconf.address;
     
     memset(rx_test, 0xA5, sizeof(rx_test));
     sg2002_trace("eeprom set address\n");

@@ -235,10 +235,8 @@ static bool sg2002_i2c_enctl(struct sg2002_i2c_priv_s *priv, bool state) {
         return false;
 
     while (timeout) {
-        sg2002_trace("I2C set enable state\n");
         ic_en_reg->field.enable = state;
         if (ic_en_status_reg->field.ic_en == state) {
-            sg2002_trace("I2C %sabled\n", state ? "en" : "dis");
             return true;
         }
 
@@ -566,12 +564,14 @@ static void sg2002_i2c_sem_init(struct sg2002_i2c_priv_s *priv) {
     nxsem_set_protocol(&priv->sem_isr, SEM_PRIO_NONE);
 }
 
-static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, uint8_t addr) {
+static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s *msg) {
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
     SG2002_Con_Reg *ic_con_reg = NULL;
     SG2002_Tar_Reg *ic_tar_reg = NULL;
     SG2002_Clr_Intr_Reg *ic_clr_intr_reg = NULL;
     SG2002_Intr_Mask_Reg *ic_intr_mask_reg = NULL;
+    SG2002_Rx_Tl_Reg *ic_rx_tl_reg = NULL;
+    SG2002_Tx_Tl_Reg *ic_tx_tl_reg = NULL;
 
     if ((priv == NULL) || (priv->config == NULL) || \
         !sg2002_check_i2c_base(priv->config->base))
@@ -582,23 +582,28 @@ static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, uint8_t a
     ic_tar_reg = To_SG2002_Tar_Reg_Ptr(i2c->ic_tar);
     ic_clr_intr_reg = To_SG2002_Clr_Intr_Reg_Ptr(i2c->ic_clr_intr);
     ic_intr_mask_reg = To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask);
-    
+    ic_rx_tl_reg = To_SG2002_Rx_Tl_Reg_Ptr(i2c->ic_rx_tl);
+    ic_tx_tl_reg = To_SG2002_Tx_Tl_Reg_Ptr(i2c->ic_tx_tl); 
+
     /* Disable the i2c */
     sg2002_i2c_enctl(priv, false);
 
     ic_con_reg->field.ic_10bitaddr_master = 0;
 
     /* Set the slave (target) address and enable 10-bit addressing mode if applicable */
-    ic_tar_reg->field.ic_tar = addr;
+    ic_tar_reg->field.ic_tar = msg->addr;
     sg2002_trace("xfer init device address set to 0x%02X\n", ic_tar_reg->field.ic_tar);
 
-    /* Enable the adapter */
-    sg2002_i2c_enctl(priv, true);
-
     uint32_t tmp = 0;
-    sg2002_trace("wait clr intr reg clear\n");
+    uint16_t time_out = 100;
     while (tmp) {
         tmp = ic_clr_intr_reg->val;
+        up_udelay(25);
+        time_out --;
+        if (time_out == 0) {
+            sg2002_trace("wait ic_clr_intr_reg timeout\n");
+            return;
+        }
     }
 
     /* Clear and enable interrupts */
@@ -606,6 +611,13 @@ static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, uint8_t a
     ic_intr_mask_reg->field.m_tx_empty = true;
     ic_intr_mask_reg->field.m_stop_det = true;
     ic_intr_mask_reg->field.m_tx_abrt = true;
+
+    /* set tx_tl & rx_tl */
+    ic_rx_tl_reg->field.rx_tl = msg->length;
+    ic_tx_tl_reg->field.tx_tl = msg->length;
+
+    /* Enable the adapter */
+    sg2002_i2c_enctl(priv, true);
 }
 
 static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs, int count) {
@@ -634,7 +646,7 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
 	priv->msgv = msgs;
 	priv->msgc = count;
 
-	sg2002_i2c_xfer_init_burst(priv, msgs->addr);
+	sg2002_i2c_xfer_init_burst(priv, msgs);
 
     nxsem_post(&priv->sem_excl);
     return 0;
@@ -712,7 +724,7 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
     data_cmd_reg = To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd);
     ic_intr_mask_reg = To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask);
 
-	for (i = 0; i < num; i++) {
+    for (i = 0; i < num; i++) {
         buf = msgs[i].buffer;
 		buf_len = msgs[i].length;
 
@@ -729,7 +741,7 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
              * detected from the registers so we set it always
              * when writing/reading the last byte.
              */
-			if ((i == num - 1) && (buf_len == 1)) {
+			if (buf_len == 1) {
                 data_cmd_reg->field.stop = true;
             }
             
@@ -861,10 +873,8 @@ static int sg2002_i2c_irq_handle(int irq, void *context, void *arg) {
     ic_intr_mask_reg = To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask);
 
      /* if i2c is disabled or no interrupt is pending, return */
-    if (!ic_enable_reg->field.enable || !(ic_intr_stat_reg->val & ~SG2002_BIT_I2C_INT_ACTIVITY)) {
-        sg2002_trace("I2C IRQ process failed\n");
+    if (!ic_enable_reg->field.enable || !(ic_intr_stat_reg->val & ~SG2002_BIT_I2C_INT_ACTIVITY))
         return -1;
-    }
 
     sg2002_trace(" ----------------------------------- I2C IRQ Start -------------------------------------\n");
 
@@ -888,7 +898,6 @@ static int sg2002_i2c_irq_handle(int irq, void *context, void *arg) {
 	}
 
     if (state & SG2002_BIT_I2C_INT_TX_EMPTY) {
-        sg2002_trace("tx empty, msg addr 0x%08x\n", priv->msgv);
         if (priv->msgv) {
             sg2002_i2c_dw_xfer_msg(priv, priv->msgv, priv->msgc);
         } else {

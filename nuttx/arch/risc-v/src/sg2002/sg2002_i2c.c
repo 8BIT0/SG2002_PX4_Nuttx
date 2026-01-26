@@ -53,7 +53,10 @@
 #define SG2002_Clr_Activity_Reg             volatile SG2002_IC_CLR_ACTIVITY_Reg_TypeDef
 #define SG2002_Clr_Start_Det_Reg            volatile SG2002_IC_CLR_START_DET_Reg_TypeDef
 #define SG2002_Clr_Gen_Call_Reg             volatile SG2002_IC_CLR_GEN_CALL_Reg_TypeDef
- 
+#define SG2002_Sda_Hold_Reg                 volatile SG2002_IC_SDA_HOLD_Reg_TypeDef
+#define SG2002_Sda_Setup_Reg                volatile SG2002_IC_SDA_SETUP_Reg_TypeDef
+#define SG2002_Fs_Spklen_Reg                volatile SG2002_IC_FS_SPKLEN_Reg_TypeDef
+
 #define To_SG2002_Enable_Reg_Ptr(x)         ((SG2002_Enable_Reg         *)((uintptr_t)&(x)))
 #define To_SG2002_EnableStatus_Reg_Ptr(x)   ((SG2002_EnableStatus_Reg   *)((uintptr_t)&(x)))
 #define To_SG2002_Status_Reg_Ptr(x)         ((SG2002_Status_Reg         *)((uintptr_t)&(x)))
@@ -84,6 +87,9 @@
 #define To_SG2002_Clr_Activity_Reg_Ptr(x)   ((SG2002_Clr_Activity_Reg   *)((uintptr_t)&(x)))
 #define To_SG2002_Clr_Start_Det_Reg_Ptr(x)  ((SG2002_Clr_Start_Det_Reg  *)((uintptr_t)&(x)))
 #define To_SG2002_Clr_Gen_Call_Reg_Ptr(x)   ((SG2002_Clr_Gen_Call_Reg   *)((uintptr_t)&(x)))
+#define To_SG2002_Sda_Hold_Reg_Ptr(x)       ((SG2002_Sda_Hold_Reg       *)((uintptr_t)&(x)))
+#define To_SG2002_Sda_Setup_Reg_Ptr(x)      ((SG2002_Sda_Setup_Reg      *)((uintptr_t)&(x)))
+#define To_SG2002_Fs_Spklen_Reg_Ptr(x)      ((SG2002_Fs_Spklen_Reg      *)((uintptr_t)&(x)))
 
 #define reg_t volatile uint32_t
 
@@ -155,8 +161,6 @@ struct sg2002_i2c_priv_s {
     uint8_t *ptr;                           /* Current message buffer */
     int dcnt;                               /* Current message length */
     uint16_t flags;                         /* Current message flags */
-
-    uint32_t status;
 };
 
 static bool sg2002_check_i2c_base(uint32_t base);
@@ -194,7 +198,6 @@ static struct sg2002_i2c_priv_s sg2002_i2c1_priv = {
     .ptr        = NULL,
     .dcnt       = 0,
     .flags      = 0,
-    .status     = 0
 };
 #endif
 
@@ -213,7 +216,6 @@ static struct sg2002_i2c_priv_s sg2002_i2c3_priv = {
     .ptr        = NULL,
     .dcnt       = 0,
     .flags      = 0,
-    .status     = 0
 };
 #endif
 
@@ -236,14 +238,12 @@ static bool sg2002_i2c_enctl(struct sg2002_i2c_priv_s *priv, bool state) {
 
     while (timeout) {
         ic_en_reg->field.enable = state;
-        if (ic_en_status_reg->field.ic_en == state) {
+        if (ic_en_status_reg->field.ic_en == state)
             return true;
-        }
 
         up_udelay(25);
         timeout --;
     }
-    sg2002_trace("I2C enable control TIMEOUT !\n");
 
     return false;
 }
@@ -263,90 +263,123 @@ static bool sg2002_i2c_wait_for_bb(volatile sg2002_i2c_reg_TypeDef *i2c) {
         timeout++;
 
         /* exceed 1 ms */
-        if (timeout > 200) {
-            sg2002_trace("I2C status reg st_mst_activity: %d, st_tfe: %d\n",
-                ic_status_reg->field.st_mst_activity,
-                ic_status_reg->field.st_tfe);
-            sg2002_trace("I2C bus busy timeout\n");
+        if (timeout > 200)
             return true;
-        }
 	}
 
 	return false;
 }
 
+static void sg2002_print_speed_state(struct sg2002_i2c_priv_s *priv) {
+    volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
+    SG2002_Ss_Scl_Hcnt_Reg *ic_ss_scl_hcnt_reg = NULL;
+    SG2002_Ss_Scl_Lcnt_Reg *ic_ss_scl_lcnt_reg = NULL;
+    SG2002_Fs_Scl_Hcnt_Reg *ic_fs_scl_hcnt_reg = NULL;
+    SG2002_Fs_Scl_Lcnt_Reg *ic_fs_scl_lcnt_reg = NULL;
+    SG2002_Sda_Hold_Reg *ic_sda_hold_reg = NULL;
+    SG2002_Sda_Setup_Reg *ic_sda_setup_reg = NULL;
+    SG2002_Fs_Spklen_Reg *ic_fs_spklen_reg = NULL;
+
+    i2c = SG2002_Priv_2_BaseReg(priv->config->base);
+    
+    if (i2c == NULL)
+        return;
+
+    ic_ss_scl_hcnt_reg = To_SG2002_Ss_Scl_Hcnt_Reg_Ptr(i2c->ic_ss_scl_hcnt);
+    ic_ss_scl_lcnt_reg = To_SG2002_Ss_Scl_Lcnt_Reg_Ptr(i2c->ic_ss_scl_lcnt);
+    ic_fs_scl_hcnt_reg = To_SG2002_Fs_Scl_Hcnt_Reg_Ptr(i2c->ic_fs_scl_hcnt);
+    ic_fs_scl_lcnt_reg = To_SG2002_Fs_Scl_Lcnt_Reg_Ptr(i2c->ic_fs_scl_lcnt);
+    ic_sda_hold_reg = To_SG2002_Sda_Hold_Reg_Ptr(i2c->ic_sda_hold);
+    ic_sda_setup_reg = To_SG2002_Sda_Setup_Reg_Ptr(i2c->ic_sda_setup);
+    ic_fs_spklen_reg = To_SG2002_Fs_Spklen_Reg_Ptr(i2c->ic_fs_spklen);
+
+    sg2002_trace("ic_ss_scl_hcnt_reg.ic_ss_scl_hcnt    %d\n", ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt);
+    sg2002_trace("ic_ss_scl_lcnt_reg.ic_ss_scl_lcnt    %d\n", ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt);
+    sg2002_trace("ic_fs_scl_hcnt_reg.ic_fs_scl_hcnt    %d\n", ic_fs_scl_hcnt_reg->field.ic_fs_scl_hcnt);
+    sg2002_trace("ic_fs_scl_lcnt_reg.ic_fs_scl_lcnt    %d\n", ic_fs_scl_lcnt_reg->field.ic_fs_scl_lcnt);
+    sg2002_trace("ic_sda_hold_reg.ic_sda_hold          %d\n", ic_sda_hold_reg->field.ic_sda_hold);
+    sg2002_trace("ic_sda_setup_reg.sda_setup           %d\n", ic_sda_setup_reg->field.sda_setup);
+    sg2002_trace("ic_fs_spklen_reg.ic_fs_spklen        %d\n", ic_fs_spklen_reg->field.ic_fs_spklen);
+}
+
 /* set bus speed */
 static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed) {
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
-    SG2002_Con_Reg *ic_con_reg = NULL;
     uint8_t i2c_speed = 0;
+    SG2002_Con_Reg ic_con_reg;
+    SG2002_Ss_Scl_Hcnt_Reg ic_ss_scl_hcnt_reg;
+    SG2002_Ss_Scl_Lcnt_Reg ic_ss_scl_lcnt_reg;
+    SG2002_Fs_Scl_Hcnt_Reg ic_fs_scl_hcnt_reg;
+    SG2002_Fs_Scl_Lcnt_Reg ic_fs_scl_lcnt_reg;
+    SG2002_Sda_Hold_Reg ic_sda_hold_reg;
+    SG2002_Sda_Setup_Reg ic_sda_setup_reg;
+    SG2002_Fs_Spklen_Reg ic_fs_spklen_reg;
 
     if ((priv == NULL) || !sg2002_check_i2c_base(priv->config->base))
         return false;
 
-    if (speed > I2C_SPEED_FAST) {
-        sg2002_trace("Setting I2C bus speed to HIGH SPEED mode\n");
-        i2c_speed = SG2002_I2C_BUS_MODE_HIGH;
-    } else if ((speed <= I2C_SPEED_FAST) && (speed > I2C_SPEED_STANDARD)) {
-        sg2002_trace("Setting I2C bus speed to FAST mode\n");
+    if ((speed <= I2C_SPEED_FAST) && (speed > I2C_SPEED_STANDARD)) {
         i2c_speed = SG2002_I2C_BUS_MODE_FAST;
     } else {
-        sg2002_trace("Setting I2C bus speed to STANDARD mode\n");
         i2c_speed = SG2002_I2C_BUS_MODE_STANDARD;
     }
 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
-    ic_con_reg = To_SG2002_Con_Reg_Ptr(i2c->ic_con);
+
+    ic_sda_hold_reg.val = To_SG2002_Sda_Hold_Reg_Ptr(i2c->ic_sda_hold)->val;
+    ic_sda_setup_reg.val = To_SG2002_Sda_Setup_Reg_Ptr(i2c->ic_sda_setup)->val;
+    ic_fs_spklen_reg.val = To_SG2002_Fs_Spklen_Reg_Ptr(i2c->ic_fs_spklen)->val;
+
+    ic_con_reg.val = To_SG2002_Con_Reg_Ptr(i2c->ic_con)->val;
+    ic_ss_scl_hcnt_reg.val = 0;
+    ic_ss_scl_lcnt_reg.val = 0;
+    ic_fs_scl_hcnt_reg.val = 0;
+    ic_fs_scl_lcnt_reg.val = 0;
 
     /* to set speed cltr must be disabled */
     sg2002_i2c_enctl(priv, false);
-    ic_con_reg->field.speed = 0;
 
     switch (i2c_speed) {
-        case SG2002_I2C_BUS_MODE_HIGH: {
-            SG2002_Hs_Scl_Hcnt_Reg *ic_hs_scl_hcnt_reg = To_SG2002_Hs_Scl_Hcnt_Reg_Ptr(i2c->ic_hs_scl_hcnt);
-            SG2002_Hs_Scl_Lcnt_Reg *ic_hs_scl_lcnt_reg = To_SG2002_Hs_Scl_Lcnt_Reg_Ptr(i2c->ic_hs_scl_lcnt);
-            ic_hs_scl_hcnt_reg->field.ic_hs_scl_hcnt = 0;
-            ic_hs_scl_lcnt_reg->field.ic_hs_scl_lcnt = 0;
-            sg2002_trace("reset I2C hs scl hcnt: %u, hs scl lcnt: %u\n", ic_hs_scl_hcnt_reg->field.ic_hs_scl_hcnt, ic_hs_scl_lcnt_reg->field.ic_hs_scl_lcnt);
-
-            ic_hs_scl_hcnt_reg->field.ic_hs_scl_hcnt = 6;
-            ic_hs_scl_lcnt_reg->field.ic_hs_scl_lcnt = 8;
-            sg2002_trace("set I2C hs scl hcnt: %u, hs scl lcnt: %u\n", ic_hs_scl_hcnt_reg->field.ic_hs_scl_hcnt, ic_hs_scl_lcnt_reg->field.ic_hs_scl_lcnt);
-            break;
-        }
-
         case SG2002_I2C_BUS_MODE_STANDARD: {
-            SG2002_Ss_Scl_Hcnt_Reg *ic_ss_scl_hcnt_reg = To_SG2002_Ss_Scl_Hcnt_Reg_Ptr(i2c->ic_ss_scl_hcnt);
-            SG2002_Ss_Scl_Lcnt_Reg *ic_ss_scl_lcnt_reg = To_SG2002_Ss_Scl_Lcnt_Reg_Ptr(i2c->ic_ss_scl_lcnt);
+            ic_ss_scl_hcnt_reg.field.ic_ss_scl_hcnt = 115;
+            ic_ss_scl_lcnt_reg.field.ic_ss_scl_lcnt = 135;
+            ic_fs_scl_hcnt_reg.field.ic_fs_scl_hcnt = 21;
+            ic_fs_scl_lcnt_reg.field.ic_fs_scl_lcnt = 42;
 
-            ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt = 0;
-            ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt = 0;
-            sg2002_trace("reset I2C ss scl hcnt: %u, ss scl lcnt: %u\n", ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt, ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt);
-
-            ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt = (uint16_t)(((SG2002_IC_CLK * SG2002_MIN_SS_SCL_HIGHTIME) / 1000) - 7);
-            ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt = (uint16_t)(((SG2002_IC_CLK * SG2002_MIN_SS_SCL_LOWTIME) / 1000) - 1);
-            sg2002_trace("set I2C ss scl hcnt: %u, ss scl lcnt: %u\n", ic_ss_scl_hcnt_reg->field.ic_ss_scl_hcnt, ic_ss_scl_lcnt_reg->field.ic_ss_scl_lcnt);
+            ic_sda_hold_reg.field.ic_sda_hold = 1;
+            ic_sda_setup_reg.field.sda_setup = 6;
+            ic_fs_spklen_reg.field.ic_fs_spklen = 2;
             break;
         }
 
         case SG2002_I2C_BUS_MODE_FAST:
         default: {
-            SG2002_Fs_Scl_Hcnt_Reg *ic_fs_scl_hcnt = To_SG2002_Fs_Scl_Hcnt_Reg_Ptr(i2c->ic_fs_scl_hcnt);
-            SG2002_Fs_Scl_Lcnt_Reg *ic_fs_scl_lcnt = To_SG2002_Fs_Scl_Lcnt_Reg_Ptr(i2c->ic_fs_scl_lcnt);
+            ic_ss_scl_hcnt_reg.field.ic_ss_scl_hcnt = 460;
+            ic_ss_scl_lcnt_reg.field.ic_ss_scl_lcnt = 540;
+            ic_fs_scl_hcnt_reg.field.ic_fs_scl_hcnt = 90;
+            ic_fs_scl_lcnt_reg.field.ic_fs_scl_lcnt = 160;
 
-            ic_fs_scl_hcnt->field.ic_fs_scl_hcnt = 0;
-            ic_fs_scl_lcnt->field.ic_fs_scl_lcnt = 0;
-            sg2002_trace("reset I2C fs scl hcnt: %u, fs scl lcnt: %u\n", ic_fs_scl_hcnt->field.ic_fs_scl_hcnt, ic_fs_scl_lcnt->field.ic_fs_scl_lcnt);
-            
-            ic_fs_scl_hcnt->field.ic_fs_scl_hcnt = (uint16_t)(((SG2002_IC_CLK * SG2002_MIN_FS_SCL_HIGHTIME) / 1000) - 7);
-            ic_fs_scl_lcnt->field.ic_fs_scl_lcnt = (uint16_t)(((SG2002_IC_CLK * SG2002_MIN_FS_SCL_LOWTIME) / 1000) - 1);
-            sg2002_trace("set I2C fs scl hcnt: %u, fs scl lcnt: %u\n", ic_fs_scl_hcnt->field.ic_fs_scl_hcnt, ic_fs_scl_lcnt->field.ic_fs_scl_lcnt);
+            ic_sda_hold_reg.field.ic_sda_hold = 1;
+            ic_sda_setup_reg.field.sda_setup = 25;
+            ic_fs_spklen_reg.field.ic_fs_spklen = 5;
             break;
         }
     }
 
-    ic_con_reg->field.speed = i2c_speed;
+    ic_con_reg.field.speed = i2c_speed;
+    
+    To_SG2002_Con_Reg_Ptr(i2c->ic_con)->val = ic_con_reg.val;
+
+    To_SG2002_Ss_Scl_Hcnt_Reg_Ptr(i2c->ic_ss_scl_hcnt)->val = ic_ss_scl_hcnt_reg.val;
+    To_SG2002_Ss_Scl_Lcnt_Reg_Ptr(i2c->ic_ss_scl_lcnt)->val = ic_ss_scl_lcnt_reg.val;
+    To_SG2002_Fs_Scl_Hcnt_Reg_Ptr(i2c->ic_fs_scl_hcnt)->val = ic_fs_scl_hcnt_reg.val;
+    To_SG2002_Fs_Scl_Lcnt_Reg_Ptr(i2c->ic_fs_scl_lcnt)->val = ic_fs_scl_lcnt_reg.val;
+    
+    To_SG2002_Sda_Hold_Reg_Ptr(i2c->ic_sda_hold)->val = ic_sda_hold_reg.val;
+    To_SG2002_Sda_Setup_Reg_Ptr(i2c->ic_sda_setup)->val = ic_sda_setup_reg.val;
+    To_SG2002_Fs_Spklen_Reg_Ptr(i2c->ic_fs_spklen)->val = ic_fs_spklen_reg.val;
+
+    sg2002_print_speed_state(priv);
 
     /* Enable back i2c now speed set */
     sg2002_i2c_enctl(priv, true);
@@ -354,6 +387,8 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
 }
 
 #ifdef CONFIG_I2C_POLLED
+#error "NONE TESTED I2C POLLED MODE"
+
 /* 7bit address only */
 static int sg2002_i2c_xfer_init(struct sg2002_i2c_priv_s *priv) {
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
@@ -570,8 +605,6 @@ static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, struct i2
     SG2002_Tar_Reg *ic_tar_reg = NULL;
     SG2002_Clr_Intr_Reg *ic_clr_intr_reg = NULL;
     SG2002_Intr_Mask_Reg *ic_intr_mask_reg = NULL;
-    SG2002_Rx_Tl_Reg *ic_rx_tl_reg = NULL;
-    SG2002_Tx_Tl_Reg *ic_tx_tl_reg = NULL;
 
     if ((priv == NULL) || (priv->config == NULL) || \
         !sg2002_check_i2c_base(priv->config->base))
@@ -582,17 +615,20 @@ static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, struct i2
     ic_tar_reg = To_SG2002_Tar_Reg_Ptr(i2c->ic_tar);
     ic_clr_intr_reg = To_SG2002_Clr_Intr_Reg_Ptr(i2c->ic_clr_intr);
     ic_intr_mask_reg = To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask);
-    ic_rx_tl_reg = To_SG2002_Rx_Tl_Reg_Ptr(i2c->ic_rx_tl);
-    ic_tx_tl_reg = To_SG2002_Tx_Tl_Reg_Ptr(i2c->ic_tx_tl); 
 
     /* Disable the i2c */
     sg2002_i2c_enctl(priv, false);
 
     ic_con_reg->field.ic_10bitaddr_master = 0;
+    ic_intr_mask_reg->val = 0;
 
     /* Set the slave (target) address and enable 10-bit addressing mode if applicable */
     ic_tar_reg->field.ic_tar = msg->addr;
-    sg2002_trace("xfer init device address set to 0x%02X\n", ic_tar_reg->field.ic_tar);
+    if (ic_tar_reg->field.ic_tar != msg->addr) {
+        sg2002_trace("dev addr set failed tar 0x%02x ic_tar 0x%02x\n", msg->addr, ic_tar_reg->field.ic_tar);
+        return;
+    } else
+        sg2002_trace("xfer init device address set to 0x%02X\n", ic_tar_reg->field.ic_tar);
 
     uint32_t tmp = 0;
     uint16_t time_out = 100;
@@ -611,10 +647,6 @@ static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, struct i2
     ic_intr_mask_reg->field.m_tx_empty = true;
     ic_intr_mask_reg->field.m_stop_det = true;
     ic_intr_mask_reg->field.m_tx_abrt = true;
-
-    /* set tx_tl & rx_tl */
-    ic_rx_tl_reg->field.rx_tl = msg->length;
-    ic_tx_tl_reg->field.tx_tl = msg->length;
 
     /* Enable the adapter */
     sg2002_i2c_enctl(priv, true);
@@ -637,8 +669,6 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
     /* Need to acquire lock here */
     if ((nxsem_wait(&priv->sem_excl) < 0) | sg2002_i2c_wait_for_bb(i2c))
 		return -1;
-
-    priv->status = 0;
 
     priv->dcnt = 0;
     priv->ptr = NULL;
@@ -683,7 +713,7 @@ static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s 
 
         for (; rx_valid > 0; rx_valid--) {
             *priv->ptr = i2c_data_cmd_reg->field.dat;
-
+            sg2002_trace("read data 0x%02x\n", *priv->ptr);
             priv->ptr ++;
             priv->dcnt --;
         }
@@ -701,17 +731,14 @@ static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s 
  * longer than the size of the tx buffer, it handles everything.
  */
 static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s *msgs, uint32_t num) {
-    uint16_t tx_mem = 0;
-    uint16_t rx_mem = 0;
     uint32_t buf_len = 0;
     uint8_t *buf = NULL;
-    bool restart = false;
     uint8_t i = 0;
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
-    SG2002_TxFlr_Reg *i2c_txflr_reg = NULL;
-    SG2002_RxFlr_Reg *i2c_rxflr_reg = NULL;
     SG2002_Data_Cmd_Reg *data_cmd_reg = NULL;
     SG2002_Intr_Mask_Reg *ic_intr_mask_reg = NULL;
+    SG2002_Data_Cmd_Reg cmd_tmp;
+    SG2002_Intr_Mask_Reg intr_mask_tmp;
 
     if ((priv == NULL) || (priv->config == NULL) || \
         !sg2002_check_i2c_base(priv->config->base) || \
@@ -719,8 +746,6 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
         return;
 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
-    i2c_txflr_reg = To_SG2002_TxFlr_Reg_Ptr(i2c->ic_txflr);
-    i2c_rxflr_reg = To_SG2002_RxFlr_Reg_Ptr(i2c->ic_rxflr);
     data_cmd_reg = To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd);
     ic_intr_mask_reg = To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask);
 
@@ -728,55 +753,48 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
         buf = msgs[i].buffer;
 		buf_len = msgs[i].length;
 
-		tx_mem = SG2002_I2C_FIFO_DEPTH - i2c_txflr_reg->field.txflr;
-		rx_mem = SG2002_I2C_FIFO_DEPTH - i2c_rxflr_reg->field.rxflr;
-
-        restart = true;
-
         /* read and write fifo is not full */
-        while (buf_len > 0 && tx_mem > 0 && rx_mem > 0) {
+        while (buf_len > 0) {
+            cmd_tmp.val = 0;
             /*
              * If IC_EMPTYFIFO_HOLD_MASTER_EN is set we must
              * manually set the stop bit. However, it cannot be
              * detected from the registers so we set it always
              * when writing/reading the last byte.
              */
-			if (buf_len == 1) {
-                data_cmd_reg->field.stop = true;
-            }
-            
-            if (restart) {
-                data_cmd_reg->field.restart = true;
-                restart = false;
-            }
+			if (buf_len == 1)
+                cmd_tmp.field.stop = true;
 
-			if (msgs[i].flags & I2C_M_READ) {
-                data_cmd_reg->field.cmd = SG2002_I2C_BUS_READ;
-				rx_mem--;
-			} else {
-                data_cmd_reg->field.dat = *buf;
-                buf ++;
-            }
+			if (msgs[i].flags & I2C_M_READ)
+                cmd_tmp.field.cmd = SG2002_I2C_BUS_READ;
 
+            cmd_tmp.field.dat = *buf;
+            data_cmd_reg->val = cmd_tmp.val;
+
+            sg2002_trace("reg trans 0x%08x\ttmp trans 0x%08x\n", data_cmd_reg->val, cmd_tmp.val);
+
+            buf ++;
             buf_len--;
 		}
 
-        msgs[i].length = buf_len;
-        msgs[i].buffer = buf;
-	}
-
-    ic_intr_mask_reg->field.m_rx_full = true;
-    ic_intr_mask_reg->field.m_tx_abrt = true;
-    ic_intr_mask_reg->field.m_stop_det = true;
+        msgs[i].length = 0;
+        msgs[i].buffer = NULL;
+    }
+    
+    intr_mask_tmp.field.m_rx_full = true;
+    intr_mask_tmp.field.m_tx_abrt = true;
+    intr_mask_tmp.field.m_stop_det = true;
     if (i == num)
-        ic_intr_mask_reg->field.m_tx_empty = false;
+        intr_mask_tmp.field.m_tx_empty = false;
+
+    ic_intr_mask_reg->val = intr_mask_tmp.val;
 }
 
 static uint32_t sg2002_i2c_dw_read_clear_intrbits(struct sg2002_i2c_priv_s *priv) {
     volatile sg2002_i2c_reg_TypeDef *i2c = SG2002_Priv_2_BaseReg(priv->config->base);
     SG2002_Intr_Stat_Reg *ic_intr_stat_reg = To_SG2002_Intr_Stat_Reg_Ptr(i2c->ic_intr_stat);
     uint32_t intr_state = 0;
-    uint8_t tmp = 0;
+    uint32_t tmp = 0;
 
     if ((priv == NULL) || !sg2002_check_i2c_base(priv->config->base))
         return -1;
@@ -922,41 +940,35 @@ tx_aborted:
 
 static int sg2002_i2c_init(struct sg2002_i2c_priv_s *priv) {
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
-    SG2002_Con_Reg *ic_con_reg = NULL;
-    SG2002_Rx_Tl_Reg *ic_rx_tl_reg = NULL;
-    SG2002_Tx_Tl_Reg *ic_tx_tl_reg = NULL;
-    SG2002_Intr_Mask_Reg *ic_intr_mask_reg = NULL;
+    SG2002_Con_Reg ic_con_reg;
 
     if ((priv == NULL) || !sg2002_check_i2c_base(priv->config->base))
         return -1;
     
-    if (!sg2002_i2c_enctl(priv, false)) {
-        sg2002_trace("Failed to disable I2C controller\n");
+    if (!sg2002_i2c_enctl(priv, false))
         return -1;
-    }
 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
-    ic_con_reg = To_SG2002_Con_Reg_Ptr(i2c->ic_con);
-    ic_rx_tl_reg = To_SG2002_Rx_Tl_Reg_Ptr(i2c->ic_rx_tl);
-    ic_tx_tl_reg = To_SG2002_Tx_Tl_Reg_Ptr(i2c->ic_tx_tl);
-    ic_intr_mask_reg = To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask);
 
-    ic_con_reg->val = 0;
-    ic_rx_tl_reg->val = 0;
-    ic_tx_tl_reg->val = 0;
-    ic_intr_mask_reg->val = 0;
+    ic_con_reg.val = 0;
+    ic_con_reg.field.master_mode = true;
+    ic_con_reg.field.ic_slave_disable = true;
+    ic_con_reg.field.ic_restart_en = true;
+    To_SG2002_Con_Reg_Ptr(i2c->ic_con)->val = ic_con_reg.val;
 
-    ic_con_reg->field.master_mode = true;
-    ic_con_reg->field.speed = SG2002_I2C_BUS_MODE_FAST;
-    ic_con_reg->field.ic_slave_disable = true;
-    ic_con_reg->field.ic_restart_en = false;
+    To_SG2002_Rx_Tl_Reg_Ptr(i2c->ic_rx_tl)->field.rx_tl = 0;
+    To_SG2002_Tx_Tl_Reg_Ptr(i2c->ic_tx_tl)->field.tx_tl = 0;
+    
+    /* disable all interrupt */
+    To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask)->val = 0;
 
-    ic_rx_tl_reg->field.rx_tl = 0;
-    ic_tx_tl_reg->field.tx_tl = 0;
+    /* clear all interrupt */
+    uint32_t tmp = To_SG2002_Clr_Intr_Reg_Ptr(i2c->ic_clr_intr)->val;
 
-    if (!sg2002_set_bus_speed(priv, I2C_SPEED_FAST) | \
-        !sg2002_i2c_enctl(priv, false))
+    if ((sg2002_set_bus_speed(priv, I2C_SPEED_STANDARD)) | !sg2002_i2c_enctl(priv, false)) {
+        sg2002_trace("i2c init failed\n");
         return -1;
+    }
 
     return 0;
 }
@@ -968,7 +980,7 @@ struct i2c_master_s *sg2002_i2cbus_initialize(int port) {
     switch (port) {
 #ifdef CONFIG_SG2002_I2C1
         case 1: {
-            sg2002_trace("Initializing I2C1 pin\n");
+            // sg2002_trace("Initializing I2C1 pin\n");
             sg2002_pinmux_config(sg2002_pinmux_i2c1);
             priv = (struct sg2002_i2c_priv_s *)&sg2002_i2c1_priv;
             break;
@@ -977,7 +989,7 @@ struct i2c_master_s *sg2002_i2cbus_initialize(int port) {
 
 #ifdef CONFIG_SG2002_I2C3
         case 3: {
-            sg2002_trace("Initializing I2C3 pin\n");
+            // sg2002_trace("Initializing I2C3 pin\n");
             sg2002_pinmux_config(sg2002_pinmux_i2c3);
             priv = (struct sg2002_i2c_priv_s *)&sg2002_i2c3_priv;
             break;

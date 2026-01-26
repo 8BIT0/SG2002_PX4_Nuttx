@@ -27,11 +27,11 @@ int sg2002_bringup(void) {
     struct i2c_master_s *eeprom_i2c = NULL;
 
 #ifdef CONFIG_SG2002_I2C1
-    eeprom_i2c = sg2002_i2c_register(1);
+    sg2002_i2c_register(1);
 #endif
 
 #ifdef CONFIG_SG2002_I2C3
-    sg2002_i2c_register(3);
+    eeprom_i2c = sg2002_i2c_register(3);
 #endif
 
 #if defined(CONFIG_EEPROM) && defined(CONFIG_I2C_EE_24XX)

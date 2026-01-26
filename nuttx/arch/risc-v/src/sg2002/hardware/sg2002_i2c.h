@@ -3,7 +3,6 @@
 #define __ARCH_RISCV_SRC_SG2002_HARDWARE_SG2002_IIC_H
 
 #define SG2002_I2C_BUS_NUM                  2
-#define SG2002_I2C_FIFO_DEPTH                   64
 
 #define SG2002_I2C1_BASE                    0x04010000
 #define SG2002_I2C3_BASE                    0x04030000
@@ -86,7 +85,6 @@
 typedef enum {
     SG2002_I2C_BUS_MODE_STANDARD    = 1,
     SG2002_I2C_BUS_MODE_FAST        = 2,
-    SG2002_I2C_BUS_MODE_HIGH        = 3,
 } SG2002_I2C_BUS_MODE_TypeDef;
 
 typedef enum {

@@ -399,25 +399,24 @@ static int ee24xx_open(FAR struct file *filep)
   
   uint8_t reg_addr = 0;
   uint8_t rx_test[8] = {0};
+  uint8_t tx_test[8] = {1, 2, 3, 4, 5, 6, 7, 8};
 
-  for (uint8_t i = 0x50; i < 0x57; i ++) {
-    iconf.address = i;
-    iconf.address = iconf.address;
+  iconf.address = iconf.address;
     
-    memset(rx_test, 0xA5, sizeof(rx_test));
-    sg2002_trace("eeprom set address\n");
-    i2c_write(eedev->i2c, &iconf, &reg_addr, 1);
-    sg2002_trace("\n");
+  sg2002_trace("eeprom set address\n");
+  i2c_write(eedev->i2c, &iconf, tx_test, 1);
+  // i2c_write(eedev->i2c, &iconf, tx_test, sizeof(tx_test));
+  sg2002_trace("\n");
 
-    sg2002_trace("eeprom read address\n");
-    i2c_read(eedev->i2c, &iconf, rx_test, 8);
-    sg2002_trace("\n");
+  // sg2002_trace("eeprom read address\n");
+  // memset(rx_test, 0xA5, sizeof(rx_test));
+  // i2c_read(eedev->i2c, &iconf, rx_test, sizeof(rx_test));
+  // sg2002_trace("\n");
 
-    for (uint8_t t = 0; t < 8; t ++) {
-      printf(" 0x%02x ", rx_test[t]);
-    }
-    printf("\n\n");
-  }
+  // for (uint8_t t = 0; t < 8; t ++) {
+  //   printf(" 0x%02x ", rx_test[t]);
+  // }
+  printf("\n\n");
 
   if ((eedev->refs + 1) == 0) {
       ret = -EMFILE;

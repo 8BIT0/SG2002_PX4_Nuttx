@@ -404,9 +404,19 @@ static int ee24xx_open(FAR struct file *filep)
   iconf.address = iconf.address;
     
   sg2002_trace("eeprom set address\n");
-  i2c_write(eedev->i2c, &iconf, tx_test, 1);
-  // i2c_write(eedev->i2c, &iconf, tx_test, sizeof(tx_test));
+  i2c_write(eedev->i2c, &iconf, tx_test, sizeof(tx_test));
   sg2002_trace("\n");
+
+  struct timespec ts;
+    for (uint8_t a = 0; a < 10; a ++) {
+      clock_gettime(CLOCK_REALTIME, &ts);
+
+      up_mdelay(10);
+
+      sg2002_trace("sec\t%ld\tnsec\t%ld\n", ts.tv_sec, ts.tv_nsec);
+    }
+
+  up_mdelay(100);
 
   // sg2002_trace("eeprom read address\n");
   // memset(rx_test, 0xA5, sizeof(rx_test));

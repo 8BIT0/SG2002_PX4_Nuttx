@@ -91,6 +91,30 @@ static uint64_t riscv_mtimer_get_mtime(struct riscv_mtimer_lowerhalf_s *priv)
    */
 
   return -1 == priv->mtime ? READ_CSR(time) : getreg64(priv->mtime);
+#elif defined CONFIG_ARCH_CHIP_SG2002
+  static uint64_t nxt_time = 0;
+  uint64_t current_time = 0;
+  volatile uint32_t uHartId;
+  volatile uint32_t *MachineTimerCompareRegL = NULL;
+  volatile uint32_t *MachineTimerCompareRegH = NULL;
+
+  __asm volatile( "csrr %0, mhartid" : "=r"(uHartId) );
+
+  if (priv->mtimecmp != NULL) {
+    MachineTimerCompareRegL = (volatile uint32_t *)(priv->mtimecmp + (uHartId * sizeof(uint64_t)));
+    MachineTimerCompareRegH = (volatile uint32_t *)(priv->mtimecmp + sizeof(uint32_t) + (uHartId * sizeof(uint64_t)));
+    
+    asm volatile("rdtime %0" : "=r" (current_time));
+  
+    nxt_time = (uint64_t)current_time;
+    nxt_time += 1;
+
+    MachineTimerCompareRegL = (uint32_t)(nxt_time & 0xFFFFFFFF);
+    MachineTimerCompareRegH = (uint32_t)(nxt_time >> 32);
+
+    nxt_time += 1;
+    return current_time;
+  }
 #else
   uint32_t hi;
   uint32_t lo;

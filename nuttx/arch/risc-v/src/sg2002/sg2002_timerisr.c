@@ -64,10 +64,6 @@ void up_timer_initialize(void)
 {
   struct oneshot_lowerhalf_s *lower;
 
-  /* Initialize the OpenSBI Timer. mtime and mtimecmp are unused for
-   * OpenSBI.
-   */
-
   lower = riscv_mtimer_initialize(SG2002_CLINT_MTIME, SG2002_CLINT_MTIMECMP, RISCV_IRQ_MTIMER, MTIMER_FREQ);
 
   DEBUGASSERT(lower != NULL);

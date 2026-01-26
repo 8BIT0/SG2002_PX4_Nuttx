@@ -771,8 +771,6 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
             cmd_tmp.field.dat = *buf;
             data_cmd_reg->val = cmd_tmp.val;
 
-            sg2002_trace("reg trans 0x%08x\ttmp trans 0x%08x\n", data_cmd_reg->val, cmd_tmp.val);
-
             buf ++;
             buf_len--;
 		}

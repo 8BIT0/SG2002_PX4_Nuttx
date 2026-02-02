@@ -422,6 +422,7 @@ static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, struct i2
 static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs, int count) {
     struct sg2002_i2c_priv_s *priv = NULL;
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
+    uint32_t timeout = 200;
 
     if ((dev == NULL) || (msgs == NULL) || (count <= 0))
         return -1;
@@ -443,7 +444,13 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
 	priv->msgc = count;
 
 	sg2002_i2c_xfer_init_burst(priv, msgs);
-    while (priv->wait_irq);
+    
+    /* 1ms timeout */
+    while (priv->wait_irq && (timeout != 0)) {
+        up_udelay(5);
+        timeout --;
+    }
+
     sg2002_i2c_enctl(priv, false);
 
     nxsem_post(&priv->sem_excl);
@@ -630,6 +637,8 @@ static int sg2002_i2c_irq_handle(int irq, void *context, void *arg) {
             priv->wait_irq = false;
 	}
 
+
+    /* check all state register value */    
     sg2002_trace_dirout("------------------- i2c irq end -------------------\n");
 
 tx_aborted:

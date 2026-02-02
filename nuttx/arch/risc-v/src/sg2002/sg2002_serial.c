@@ -121,7 +121,7 @@ typedef struct {
 static inline bool sg2002_check_uart_base(uint32_t base);
 static int sg2002_interrupt(int irq, void *context, void *arg);
 
-static void dummy9(struct uart_dev_s *dev);
+static bool dummy9(struct uart_dev_s *dev);
 static int sg2002_attach(struct uart_dev_s *dev);
 static void sg2002_detach(struct uart_dev_s *dev);
 static int sg2002_uart_setup(struct uart_dev_s *dev);
@@ -450,8 +450,9 @@ int up_putc(int ch) {
 #endif
 }
 
-static void dummy9(struct uart_dev_s *dev) {
+static bool dummy9(struct uart_dev_s *dev) {
     up_putc('9');
+    return false;
 }
 
 

@@ -32,6 +32,26 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             return true;
         }
 
+        case sg2002_pinmux_spi1: {
+            /* set spi 1 clk  pin */
+            // mmio_clrsetbits_32();
+            /* set spi 1 mosi pin */
+            // mmio_clrsetbits_32();
+            /* set spi 1 miso pin */
+            // mmio_clrsetbits_32();
+            return true;
+        }
+
+        case sg2002_pinmux_spi2: {
+            /* set spi 2 clk  pin */
+            // mmio_clrsetbits_32();
+            /* set spi 2 miso pin */
+            // mmio_clrsetbits_32();
+            /* set spi 2 mosi pin */
+            // mmio_clrsetbits_32();
+            return true;
+        }
+
         default: return false;
     }
 

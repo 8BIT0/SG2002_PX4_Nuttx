@@ -62,6 +62,7 @@ typedef enum {
     sg2002_gpio_out = 0,
     sg2002_gpio_in,
     sg2002_pinmux_uart1,
+    sg2002_pinmux_spi1,
     sg2002_pinmux_spi2,
     sg2002_pinmux_i2c1,
     sg2002_pinmux_i2c3,

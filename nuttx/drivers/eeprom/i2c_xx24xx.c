@@ -397,18 +397,36 @@ static int ee24xx_open(FAR struct file *filep)
   iconf.address = 0x50;
   iconf.addrlen   = 7; 
   
+  uint8_t t = 0;
+  static uint16_t reg_addr = 0x1000;
+
   uint8_t rx_test[8] = {0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5};
-  uint8_t tx_test[10] = {0x07, 0x00, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C};
+  static uint8_t tx_test[8] = {0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C};
 
   iconf.address = iconf.address;
-    
-  i2c_write(eedev->i2c, &iconf, tx_test, sizeof(tx_test));
-  up_mdelay(100);
 
-  i2c_write(eedev->i2c, &iconf, tx_test, 2);
+  printf("\ninit read addr 0x%02x\n", reg_addr);
+  i2c_write(eedev->i2c, &iconf, (uint8_t *)&reg_addr, sizeof(reg_addr));
   i2c_read(eedev->i2c, &iconf, rx_test, sizeof(rx_test));
+  for (t = 0; t < sizeof(rx_test); t ++) {
+    printf(" 0x%02x ", rx_test[t]);
+    rx_test[t] = 0xA5;
+  }
+  printf("\n\n");
+  
+  printf("tx addr 0x%02x\n", reg_addr);
+  i2c_write(eedev->i2c, &iconf, (uint8_t *)&reg_addr, sizeof(reg_addr));
+  i2c_write(eedev->i2c, &iconf, tx_test, sizeof(tx_test));
+  for (t = 0; t < sizeof(tx_test); t ++) {
+    printf(" 0x%02x ", tx_test[t]);
+    tx_test[t] += 1;
+  }
+  printf("\n");
 
-  for (uint8_t t = 0; t < 8; t ++) {
+  printf("\nrx addr 0x%02x\n", reg_addr);
+  i2c_write(eedev->i2c, &iconf, (uint8_t *)&reg_addr, sizeof(reg_addr));
+  i2c_read(eedev->i2c, &iconf, rx_test, sizeof(rx_test));
+  for (t = 0; t < sizeof(rx_test); t ++) {
     printf(" 0x%02x ", rx_test[t]);
   }
   printf("\n\n");
@@ -418,6 +436,8 @@ static int ee24xx_open(FAR struct file *filep)
   } else {
       eedev->refs += 1;
   }
+
+  reg_addr += 8;
 
   ee24xx_semgive(eedev);
   return ret;

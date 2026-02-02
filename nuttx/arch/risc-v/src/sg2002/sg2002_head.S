@@ -41,7 +41,11 @@
 	.extern __trap_vec
 	.section .vectors, "ax"
 	.global __start
-	.global sg2002_trace
+	.global sg2002_trace_dirout
+	.global sg2002_create_stream
+	.global sg2002_delete_stream
+	.global sg2002_stream_write
+	.global sg2002_stream_dump
 	.type __start,@function
 
 __start:

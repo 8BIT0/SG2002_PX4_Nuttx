@@ -79,7 +79,7 @@ SECTIONS
       _edata = ABSOLUTE(.);
     } > ram
 
-  .bss : ALIGN(4)
+  .bss (NOLOAD): ALIGN(4)
     {
       _sbss = ABSOLUTE(.);
       *(.bss .bss.*)
@@ -90,7 +90,7 @@ SECTIONS
       _ebss = ABSOLUTE(.);
     } > ram
 
-  .stack_top :
+  .stack_top (NOLOAD):
     {
       . = ALIGN(32);
       _stack_top = ABSOLUTE(.);

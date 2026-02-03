@@ -405,15 +405,6 @@ static int ee24xx_open(FAR struct file *filep)
 
   iconf.address = iconf.address;
 
-  printf("\ninit read addr 0x%02x\n", reg_addr);
-  i2c_write(eedev->i2c, &iconf, (uint8_t *)&reg_addr, sizeof(reg_addr));
-  i2c_read(eedev->i2c, &iconf, rx_test, sizeof(rx_test));
-  for (t = 0; t < sizeof(rx_test); t ++) {
-    printf(" 0x%02x ", rx_test[t]);
-    rx_test[t] = 0xA5;
-  }
-  printf("\n\n");
-  
   printf("tx addr 0x%02x\n", reg_addr);
   i2c_write(eedev->i2c, &iconf, (uint8_t *)&reg_addr, sizeof(reg_addr));
   i2c_write(eedev->i2c, &iconf, tx_test, sizeof(tx_test));

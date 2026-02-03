@@ -398,7 +398,7 @@ static int ee24xx_open(FAR struct file *filep)
   iconf.addrlen   = 7; 
   
   uint8_t t = 0;
-  static uint16_t reg_addr = 0x1000;
+  static uint16_t reg_addr = 0xa100;
 
   uint8_t rx_test[8] = {0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5};
   static uint8_t tx_test[8] = {0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C};
@@ -412,9 +412,11 @@ static int ee24xx_open(FAR struct file *filep)
     printf(" 0x%02x ", tx_test[t]);
     tx_test[t] += 1;
   }
-  printf("\n");
+  printf("\n\n");
 
-  printf("\nrx addr 0x%02x\n", reg_addr);
+  up_mdelay(10);
+  
+  printf("rx addr 0x%02x\n", reg_addr);
   i2c_write(eedev->i2c, &iconf, (uint8_t *)&reg_addr, sizeof(reg_addr));
   i2c_read(eedev->i2c, &iconf, rx_test, sizeof(rx_test));
   for (t = 0; t < sizeof(rx_test); t ++) {

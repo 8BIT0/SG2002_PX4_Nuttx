@@ -21,3 +21,12 @@
 #include "hardware/sg2002_mmio.h"
 #include "sg200x.h"
 
+struct spi_dev_s *sg2002_spibus_initialize(int port) {
+    
+    return NULL;
+}
+
+/* developping */
+int sg2002_spibus_uninitialize(struct spi_dev_s *dev) {
+    return -1;
+}

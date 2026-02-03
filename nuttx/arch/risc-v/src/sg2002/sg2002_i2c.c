@@ -21,6 +21,9 @@
 #include "hardware/sg2002_mmio.h"
 #include "sg200x.h"
 
+// #define SG2002_I2C_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
+#define SG2002_I2C_TraceOut(fmt, ...)
+
 #define SG2002_Priv_2_BaseReg(x)            (volatile sg2002_i2c_reg_TypeDef *)((uintptr_t)(x));
 
 #define SG2002_Enable_Reg                   volatile SG2002_IC_ENABLE_Reg_TypeDef
@@ -263,9 +266,12 @@ static bool sg2002_i2c_wait_for_bb(volatile sg2002_i2c_reg_TypeDef *i2c) {
     while (ic_status_reg->field.st_mst_activity || !ic_status_reg->field.st_tfe) {
         /* Evaluate timeout */
         timeout++;
+        up_udelay(5);
 
-        if (timeout > 10000000)
+        if (timeout > 200) {
+            SG2002_I2C_TraceOut("i2c busy\n");
             return true;
+        }
 	}
 
 	return false;
@@ -316,7 +322,7 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
             ic_fs_scl_lcnt_reg.field.ic_fs_scl_lcnt = 42;
 
             ic_sda_hold_reg.field.ic_sda_hold = 1;
-            ic_sda_setup_reg.field.sda_setup = 6;
+            ic_sda_setup_reg.val = 6;
             ic_fs_spklen_reg.field.ic_fs_spklen = 2;
             break;
         }
@@ -329,7 +335,7 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
             ic_fs_scl_lcnt_reg.field.ic_fs_scl_lcnt = 160;
 
             ic_sda_hold_reg.field.ic_sda_hold = 1;
-            ic_sda_setup_reg.field.sda_setup = 25;
+            ic_sda_setup_reg.val = 25;
             ic_fs_spklen_reg.field.ic_fs_spklen = 5;
             break;
         }
@@ -433,9 +439,10 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
         return -1;
 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
-
-    if ((nxsem_wait(&priv->sem_excl) < 0) | sg2002_i2c_wait_for_bb(i2c))
-		return -1;
+    
+    // if ((nxsem_wait(&priv->sem_excl) < 0) | sg2002_i2c_wait_for_bb(i2c))
+    if (sg2002_i2c_wait_for_bb(i2c))
+        return -1;
 
     priv->dcnt = 0;
     priv->ptr = NULL;
@@ -443,6 +450,7 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
 	priv->msgv = msgs;
 	priv->msgc = count;
 
+    SG2002_I2C_TraceOut("wait i2c bus transmit finish\n");
 	sg2002_i2c_xfer_init_burst(priv, msgs);
     
     /* 1ms timeout */
@@ -451,16 +459,16 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
         timeout --;
     }
 
-    sg2002_i2c_enctl(priv, false);
+    if (timeout == 0)
+        SG2002_I2C_TraceOut("i2c bus transmit timeout\n");
 
-    nxsem_post(&priv->sem_excl);
+    // nxsem_post(&priv->sem_excl);
     return 0;
 }
 
 static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s *msgs, uint32_t num) {
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
     SG2002_Data_Cmd_Reg data_cmd_tmp;
-    uint32_t timeout = 200;
 
     if ((priv == NULL) || (priv->config == NULL) || \
         !sg2002_check_i2c_base(priv->config->base) || \
@@ -470,21 +478,26 @@ static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
     
     for (uint8_t i = 0; i < num; i ++) {
-
-		if (!(msgs[i].flags & I2C_M_READ))
-			continue;
-
         priv->dcnt = msgs[i].length;
         priv->ptr = msgs[i].buffer;
         priv->flags = msgs[i].flags;
-    
+
         data_cmd_tmp.val = 0;
+        data_cmd_tmp.field.restart = true;
 
-        for (; priv->dcnt > 0; priv->dcnt --) {
-            timeout = 200;
+        for (uint8_t i = 0; i < priv->dcnt; i ++) {
+            SG2002_I2C_TraceOut("index %d\n", i);
+            if (i == (priv->dcnt - 1)) {
+                SG2002_I2C_TraceOut("rx set stop\n");
+                data_cmd_tmp.field.stop = true;
+            }
 
-            *priv->ptr = To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->field.dat;
-            priv->ptr ++;
+            To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->val = data_cmd_tmp.val;
+
+            while (!To_SG2002_Status_Reg_Ptr(i2c->ic_status)->field.st_rfne);
+
+            priv->ptr[i] = To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->field.dat;
+            data_cmd_tmp.val = 0;
         }
     }
 
@@ -502,6 +515,7 @@ static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s 
 static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s *msgs, uint32_t num) {
     uint32_t buf_len = 0;
     uint8_t *buf = NULL;
+    int8_t flags = 0;
     uint8_t i = 0;
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
     SG2002_Data_Cmd_Reg cmd_tmp;
@@ -517,27 +531,28 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
     for (i = 0; i < num; i++) {
         buf = msgs[i].buffer;
 		buf_len = msgs[i].length;
-        
+        flags = msgs[i].flags;
         cmd_tmp.val = 0;
-		
-        if (msgs[i].flags & I2C_M_READ)
-            cmd_tmp.field.restart = true;
-
-        while (buf_len > 0) {
-            if (buf_len == 1)
+        
+        for (int8_t j = 0; j < buf_len; j ++) {
+            SG2002_I2C_TraceOut("index %d\n", j);
+            if (j == (buf_len - 1)) {
+                SG2002_I2C_TraceOut("tx set stop\n");
                 cmd_tmp.field.stop = true;
+            }
 
-			if (msgs[i].flags & I2C_M_READ)
+            cmd_tmp.field.dat = buf[j];
+            if (flags & I2C_M_READ) {
                 cmd_tmp.field.cmd = SG2002_I2C_BUS_READ;
-                
-            cmd_tmp.field.dat = *buf;
-            To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->val = cmd_tmp.val;
+                cmd_tmp.field.dat = 0;
+            }
 
+            To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->val = cmd_tmp.val;
+            while (!To_SG2002_Status_Reg_Ptr(i2c->ic_status)->field.st_tfe);
             cmd_tmp.val = 0;
-            buf ++;
-            buf_len--;
 		}
     
+        intr_mask_tmp.val = 0;
         intr_mask_tmp.field.m_rx_full = true;
         intr_mask_tmp.field.m_tx_abrt = true;
         intr_mask_tmp.field.m_stop_det = true;
@@ -619,11 +634,13 @@ static int sg2002_i2c_irq_handle(int irq, void *context, void *arg) {
 		 * Anytime TX_ABRT is set, the contents of the tx/rx
 		 * buffers are flushed. Make sure to skip them.
 		 */
+        SG2002_I2C_TraceOut("i2c abrt\n");
         ic_intr_mask_reg->val = 0;
 		goto tx_aborted;
 	}
 
     if (state & SG2002_BIT_I2C_INT_RX_FULL) {
+        SG2002_I2C_TraceOut("i2c rx\n");
         if (priv->msgv) {
             sg2002_i2c_dw_read(priv, priv->msgv, priv->msgc);
         } else
@@ -631,15 +648,12 @@ static int sg2002_i2c_irq_handle(int irq, void *context, void *arg) {
 	}
 
     if (state & SG2002_BIT_I2C_INT_TX_EMPTY) {
+        SG2002_I2C_TraceOut("i2c tx\n");
         if (priv->msgv) {
             sg2002_i2c_dw_xfer_msg(priv, priv->msgv, priv->msgc);
         } else
             priv->wait_irq = false;
 	}
-
-
-    /* check all state register value */    
-    sg2002_trace_dirout("------------------- i2c irq end -------------------\n");
 
 tx_aborted:
     

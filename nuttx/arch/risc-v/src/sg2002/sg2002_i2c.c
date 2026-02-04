@@ -165,6 +165,8 @@ struct sg2002_i2c_priv_s {
     int dcnt;                               /* Current message length */
     uint16_t flags;                         /* Current message flags */
     bool wait_irq;
+    uint16_t msg_index;
+    uint16_t rx_index;
 };
 
 static bool sg2002_check_i2c_base(uint32_t base);
@@ -203,6 +205,7 @@ static struct sg2002_i2c_priv_s sg2002_i2c1_priv = {
     .dcnt       = 0,
     .flags      = 0,
     .wait_irq   = false,
+    .msg_index  = 0,
 };
 #endif
 
@@ -222,6 +225,7 @@ static struct sg2002_i2c_priv_s sg2002_i2c3_priv = {
     .dcnt       = 0,
     .flags      = 0,
     .wait_irq   = false,
+    .msg_index  = 0,
 };
 #endif
 
@@ -449,6 +453,8 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
 
 	priv->msgv = msgs;
 	priv->msgc = count;
+    priv->msg_index = 0;
+    priv->rx_index = 0;
 
     SG2002_I2C_TraceOut("wait i2c bus transmit finish\n");
 	sg2002_i2c_xfer_init_burst(priv, msgs);
@@ -458,9 +464,6 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
         up_udelay(5);
         timeout --;
     }
-
-    if (timeout == 0)
-        SG2002_I2C_TraceOut("i2c bus transmit timeout\n");
 
     // nxsem_post(&priv->sem_excl);
     return 0;
@@ -476,34 +479,33 @@ static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s 
         return;
 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
-    
-    for (uint8_t i = 0; i < num; i ++) {
-        priv->dcnt = msgs[i].length;
-        priv->ptr = msgs[i].buffer;
-        priv->flags = msgs[i].flags;
+    priv->dcnt = msgs[priv->msg_index].length;
+    priv->ptr = msgs[priv->msg_index].buffer;
+    priv->flags = msgs[priv->msg_index].flags;
 
-        data_cmd_tmp.val = 0;
-        data_cmd_tmp.field.restart = true;
+    uint32_t rxflr = To_SG2002_RxFlr_Reg_Ptr(i2c->ic_rxflr)->val;
+    SG2002_I2C_TraceOut("rxflr %d\n", rxflr);
 
-        for (uint8_t i = 0; i < priv->dcnt; i ++) {
-            SG2002_I2C_TraceOut("index %d\n", i);
-            if (i == (priv->dcnt - 1)) {
-                SG2002_I2C_TraceOut("rx set stop\n");
-                data_cmd_tmp.field.stop = true;
-            }
-
-            To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->val = data_cmd_tmp.val;
-
-            while (!To_SG2002_Status_Reg_Ptr(i2c->ic_status)->field.st_rfne);
-
-            priv->ptr[i] = To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->field.dat;
-            data_cmd_tmp.val = 0;
-        }
+    for (uint8_t i = 0; i < rxflr; i ++) {
+        while (!To_SG2002_Status_Reg_Ptr(i2c->ic_status)->field.st_rfne);
+        priv->ptr[priv->rx_index] = To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->field.dat;
+        priv->rx_index ++;
+        SG2002_I2C_TraceOut("index %d data 0x%02x\n", i, priv->ptr[i]);
     }
 
-    priv->ptr = NULL;
-    priv->dcnt = 0;
-    priv->flags = 0;
+    if (priv->rx_index == priv->dcnt) {
+        priv->ptr = NULL;
+        priv->dcnt = 0;
+        priv->flags = 0;
+        priv->rx_index = 0;
+    }
+
+    data_cmd_tmp.val = 0;
+    data_cmd_tmp.field.stop = true;
+
+    To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->val = data_cmd_tmp.val;
+
+    // SG2002_I2C_TraceOut("rx stop\n");
 }
 
 /*
@@ -534,11 +536,19 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
         flags = msgs[i].flags;
         cmd_tmp.val = 0;
         
+        if (priv->msg_index)
+            cmd_tmp.field.restart = true;
+
         for (int8_t j = 0; j < buf_len; j ++) {
             SG2002_I2C_TraceOut("index %d\n", j);
             if (j == (buf_len - 1)) {
-                SG2002_I2C_TraceOut("tx set stop\n");
-                cmd_tmp.field.stop = true;
+                if (flags & I2C_M_NOSTOP) {
+                    SG2002_I2C_TraceOut("add msg index\n");
+                    priv->msg_index += 1;
+                } else if (!(flags & I2C_M_READ)) {
+                    SG2002_I2C_TraceOut("tx set stop\n");
+                    cmd_tmp.field.stop = true;
+                }
             }
 
             cmd_tmp.field.dat = buf[j];
@@ -551,16 +561,15 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
             while (!To_SG2002_Status_Reg_Ptr(i2c->ic_status)->field.st_tfe);
             cmd_tmp.val = 0;
 		}
-    
-        intr_mask_tmp.val = 0;
-        intr_mask_tmp.field.m_rx_full = true;
-        intr_mask_tmp.field.m_tx_abrt = true;
-        intr_mask_tmp.field.m_stop_det = true;
-        if (i == num)
-            intr_mask_tmp.field.m_tx_empty = false;
-
-        To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask)->val = intr_mask_tmp.val; 
     }
+
+    intr_mask_tmp.val = 0;
+    intr_mask_tmp.field.m_rx_full = true;
+    intr_mask_tmp.field.m_tx_abrt = true;
+    intr_mask_tmp.field.m_stop_det = true;
+    intr_mask_tmp.field.m_tx_empty = !(i == num);
+
+    To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask)->val = intr_mask_tmp.val;
 }
 
 static uint32_t sg2002_i2c_dw_read_clear_intrbits(struct sg2002_i2c_priv_s *priv) {
@@ -613,6 +622,7 @@ static int sg2002_i2c_irq_handle(int irq, void *context, void *arg) {
     SG2002_Enable_Reg *ic_enable_reg = NULL;
     SG2002_Intr_Stat_Reg *ic_intr_stat_reg = NULL;
     SG2002_Intr_Mask_Reg *ic_intr_mask_reg = NULL;
+    SG2002_Intr_Mask_Reg mask;
 
     if ((priv == NULL) || (priv->refs == 0) || !sg2002_check_i2c_base(priv->config->base))
         return -1;
@@ -657,8 +667,18 @@ static int sg2002_i2c_irq_handle(int irq, void *context, void *arg) {
 
 tx_aborted:
     
-    if (state & (SG2002_BIT_I2C_INT_TX_ABRT | SG2002_BIT_I2C_INT_STOP_DET))
+    if (state & (SG2002_BIT_I2C_INT_TX_ABRT | SG2002_BIT_I2C_INT_STOP_DET)) {
         priv->wait_irq = false;
+    } else {
+        mask.val = ic_intr_mask_reg->val;
+        ic_intr_mask_reg->val = 0;
+        ic_intr_mask_reg->val = mask.val;
+
+        SG2002_I2C_TraceOut("mask.m_rx_full   %d\n", mask.field.m_rx_full);
+        SG2002_I2C_TraceOut("mask.m_tx_abrt   %d\n", mask.field.m_tx_abrt);
+        SG2002_I2C_TraceOut("mask.m_stop_det  %d\n", mask.field.m_stop_det);
+        SG2002_I2C_TraceOut("mask.m_tx_empty  %d\n", mask.field.m_tx_empty);
+    }
 
     return 0;
 }

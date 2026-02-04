@@ -490,7 +490,7 @@ static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s 
         while (!To_SG2002_Status_Reg_Ptr(i2c->ic_status)->field.st_rfne);
         priv->ptr[priv->rx_index] = To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->field.dat;
         priv->rx_index ++;
-        SG2002_I2C_TraceOut("index %d data 0x%02x\n", i, priv->ptr[i]);
+        SG2002_I2C_TraceOut("index %d data 0x%02x\n", i, priv->ptr[priv->rx_index]);
     }
 
     if (priv->rx_index == priv->dcnt) {
@@ -504,8 +504,6 @@ static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s 
     data_cmd_tmp.field.stop = true;
 
     To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->val = data_cmd_tmp.val;
-
-    // SG2002_I2C_TraceOut("rx stop\n");
 }
 
 /*
@@ -529,46 +527,47 @@ static void sg2002_i2c_dw_xfer_msg(struct sg2002_i2c_priv_s *priv, struct i2c_ms
         return;
 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
+    
+    intr_mask_tmp.val = 0;
+    intr_mask_tmp.field.m_rx_full = true;
+    intr_mask_tmp.field.m_tx_abrt = true;
+    intr_mask_tmp.field.m_stop_det = true;
 
     for (i = 0; i < num; i++) {
         buf = msgs[i].buffer;
 		buf_len = msgs[i].length;
         flags = msgs[i].flags;
         cmd_tmp.val = 0;
-        
-        if (priv->msg_index)
-            cmd_tmp.field.restart = true;
 
         for (int8_t j = 0; j < buf_len; j ++) {
             SG2002_I2C_TraceOut("index %d\n", j);
-            if (j == (buf_len - 1)) {
-                if (flags & I2C_M_NOSTOP) {
-                    SG2002_I2C_TraceOut("add msg index\n");
-                    priv->msg_index += 1;
-                } else if (!(flags & I2C_M_READ)) {
-                    SG2002_I2C_TraceOut("tx set stop\n");
-                    cmd_tmp.field.stop = true;
-                }
+
+            if (j == (buf_len - 1) && !(flags & I2C_M_NOSTOP)) {
+                SG2002_I2C_TraceOut("tx set stop\n");
+                cmd_tmp.field.stop = true;
             }
 
             cmd_tmp.field.dat = buf[j];
             if (flags & I2C_M_READ) {
+                priv->msg_index = i;
+
+                if (j == 0) {
+                    SG2002_I2C_TraceOut("set restart\n");
+                    cmd_tmp.field.restart = true;
+                    cmd_tmp.field.dat = 0;
+                }
+
                 cmd_tmp.field.cmd = SG2002_I2C_BUS_READ;
-                cmd_tmp.field.dat = 0;
             }
 
             To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->val = cmd_tmp.val;
             while (!To_SG2002_Status_Reg_Ptr(i2c->ic_status)->field.st_tfe);
+            
             cmd_tmp.val = 0;
 		}
     }
 
-    intr_mask_tmp.val = 0;
-    intr_mask_tmp.field.m_rx_full = true;
-    intr_mask_tmp.field.m_tx_abrt = true;
-    intr_mask_tmp.field.m_stop_det = true;
     intr_mask_tmp.field.m_tx_empty = !(i == num);
-
     To_SG2002_Intr_Mask_Reg_Ptr(i2c->ic_intr_mask)->val = intr_mask_tmp.val;
 }
 

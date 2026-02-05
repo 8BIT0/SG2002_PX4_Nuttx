@@ -374,6 +374,8 @@ static inline void ee24xx_semgive(FAR struct ee24xx_dev_s *eedev)
  *
  ****************************************************************************/
 
+void read_all_page(FAR struct ee24xx_dev_s *eedev);
+
 static int ee24xx_open(FAR struct file *filep)
 {
   FAR struct inode *inode = filep->f_inode;
@@ -398,38 +400,37 @@ static int ee24xx_open(FAR struct file *filep)
   iconf.addrlen   = 7; 
   
   uint8_t t = 0;
-  static uint16_t reg_addr = 0x0000;
+  static uint16_t t_reg_addr = 0x0000;
 
   uint8_t rx_test[8] = {0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5, 0xA5};
-  static uint8_t tx_test[10] = {0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}; 
+  static uint8_t tx_test[10] = {0x00, 0x00, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37}; 
+
+  uint8_t reg_addr[2] = {0, 0};
 
   iconf.address = iconf.address;
 
-  printf("init rx addr 0x%04x\n", reg_addr);
-  i2c_writeread(eedev->i2c, &iconf, (uint8_t *)&reg_addr, sizeof(reg_addr), rx_test, sizeof(rx_test));
-  for (t = 0; t < sizeof(rx_test); t ++) {
-    printf(" 0x%02x ", rx_test[t]);
-    rx_test[t] = 0xA5;
-  }
-  printf("\n\n");
+  reg_addr[0] = (uint8_t)(t_reg_addr >> 8);
+  reg_addr[1] = (uint8_t)t_reg_addr;
 
-  printf("tx addr 0x%04x\n", reg_addr);
-  memcpy(tx_test, &reg_addr, sizeof(reg_addr));
+  printf("tx addr 0x%04x\n", t_reg_addr);
+  memcpy(tx_test, reg_addr, sizeof(reg_addr));
   i2c_write(eedev->i2c, &iconf, tx_test, sizeof(tx_test));
   for (t = 2; t < sizeof(tx_test); t ++) {
     printf(" 0x%02x ", tx_test[t]);
-    tx_test[t] += 1;
+    tx_test[t] += 0x10;
   }
   printf("\n\n");
 
   up_mdelay(10);
   
-  printf("rx addr 0x%04x\n", reg_addr);
-  i2c_writeread(eedev->i2c, &iconf, (uint8_t *)&reg_addr, sizeof(reg_addr), rx_test, sizeof(rx_test));
+  printf("rx addr 0x%04x\n", t_reg_addr);
+  i2c_writeread(eedev->i2c, &iconf, reg_addr, sizeof(reg_addr), rx_test, sizeof(rx_test));
   for (t = 0; t < sizeof(rx_test); t ++) {
     printf(" 0x%02x ", rx_test[t]);
   }
   printf("\n\n");
+
+  read_all_page(eedev);
 
   if ((eedev->refs + 1) == 0) {
       ret = -EMFILE;
@@ -437,11 +438,55 @@ static int ee24xx_open(FAR struct file *filep)
       eedev->refs += 1;
   }
 
-  reg_addr += 8;
+  t_reg_addr += 8;
 
   ee24xx_semgive(eedev);
   return ret;
 }
+
+/* test 8B!T0 */
+void read_single_page(FAR struct ee24xx_dev_s *eedev, uint16_t index) {
+  uint8_t i = 0;
+  const uint8_t page_size = 32;
+  uint16_t t_addr = index * page_size;
+  uint8_t addr[2] = {0x00, 0x00};
+  struct i2c_config_s iconf;
+  uint8_t data[32];
+  
+  iconf.frequency = 400000;
+  iconf.address = 0x50;
+  iconf.addrlen   = 7; 
+
+  for (i = 0; i < page_size; i ++) {
+    data[i] = 0xAA;
+  }
+
+  addr[0] = (uint8_t)(t_addr >> 8);
+  addr[1] = (uint8_t)t_addr;
+
+  i2c_writeread(eedev->i2c, &iconf, addr, sizeof(addr), data, sizeof(data));
+  
+  printf(" ----------------- 0x%04x ----------------\n", t_addr);
+  for (i = 0; i < page_size; i ++) {
+    if ((i != 0) && (i % 8 == 0))
+      printf("\n");
+
+    printf("0x%02x ", data[i]);
+  }
+  printf("\n");
+
+  up_mdelay(20);
+}
+
+void read_all_page(FAR struct ee24xx_dev_s *eedev) {
+  const uint16_t page_sum = 8192 / 32;
+
+  for (uint16_t i = 0; i < page_sum; i ++) {
+    read_single_page(eedev, i);
+    printf("\n");
+  }
+}
+/* test 8B!T0 */
 
 /****************************************************************************
  * Name: ee24xx_close

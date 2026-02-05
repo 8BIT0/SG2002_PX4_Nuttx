@@ -489,8 +489,8 @@ static void sg2002_i2c_dw_read(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s 
     for (uint8_t i = 0; i < rxflr; i ++) {
         while (!To_SG2002_Status_Reg_Ptr(i2c->ic_status)->field.st_rfne);
         priv->ptr[priv->rx_index] = To_SG2002_Data_Cmd_Reg_Ptr(i2c->ic_data_cmd)->field.dat;
-        priv->rx_index ++;
         SG2002_I2C_TraceOut("index %d data 0x%02x\n", i, priv->ptr[priv->rx_index]);
+        priv->rx_index ++;
     }
 
     if (priv->rx_index == priv->dcnt) {

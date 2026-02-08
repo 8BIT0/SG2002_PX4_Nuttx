@@ -9,4 +9,7 @@ config SG2002_I2C1
 config SG2002_I2C3
     bool "i2c3 enable"
     default n
-    
+
+config MBOX
+    bool "mailbox enable"
+    default y

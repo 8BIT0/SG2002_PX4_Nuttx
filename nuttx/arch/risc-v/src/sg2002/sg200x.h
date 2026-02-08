@@ -9,5 +9,6 @@
 #include "chip.h"
 
 #include "sg2002_i2c.h"
+#include "sg2002_mbox.h"
 
 #endif /* __ARCH_RISCV_SRC_SG200X_H */

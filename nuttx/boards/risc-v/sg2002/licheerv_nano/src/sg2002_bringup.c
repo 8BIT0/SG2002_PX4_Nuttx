@@ -43,5 +43,10 @@ int sg2002_bringup(void) {
 
 #endif
 
+    /* init mailbox */
+    struct mbox_dev_s *mbox_dev = sg2002_mailbox_initialize();
+    if (mbox_dev != NULL)
+        mbox_register(mbox_dev);
+
     return 0;
 }

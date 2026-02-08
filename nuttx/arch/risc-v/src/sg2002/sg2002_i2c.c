@@ -156,8 +156,6 @@ struct sg2002_i2c_priv_s {
     const struct sg2002_i2c_config_s *config;
     
     int refs;                               /* Reference count */
-    sem_t sem_excl;                         /* Mutual exclusion semaphore */
-    sem_t sem_isr;                          /* Interrupt wait semaphore */
 
     uint8_t msgc;                           /* Message count */
     struct i2c_msg_s *msgv;                 /* Message list */
@@ -363,17 +361,6 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
     return true;
 }
 
-static void sg2002_i2c_sem_init(struct sg2002_i2c_priv_s *priv) {
-    nxsem_init(&priv->sem_excl, 0, 1);
-
-    /* This semaphore is used for signaling and, hence, should not have
-    * priority inheritance enabled.
-    */
-
-    nxsem_init(&priv->sem_isr, 0, 0);
-    nxsem_set_protocol(&priv->sem_isr, SEM_PRIO_NONE);
-}
-
 static void sg2002_i2c_xfer_init_burst(struct sg2002_i2c_priv_s *priv, struct i2c_msg_s *msg) {
     volatile sg2002_i2c_reg_TypeDef *i2c = NULL;
     uint32_t tmp = 0;
@@ -444,7 +431,6 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
     
-    // if ((nxsem_wait(&priv->sem_excl) < 0) | sg2002_i2c_wait_for_bb(i2c))
     if (sg2002_i2c_wait_for_bb(i2c))
         return -1;
 
@@ -465,7 +451,6 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
         timeout --;
     }
 
-    // nxsem_post(&priv->sem_excl);
     return 0;
 }
 
@@ -745,12 +730,8 @@ struct i2c_master_s *sg2002_i2cbus_initialize(int port) {
 
     flags = enter_critical_section();
 
-    if ((volatile int)priv->refs++ == 0) {
-#ifndef CONFIG_I2C_POLLED
-        sg2002_i2c_sem_init(priv);
-#endif        
+    if ((volatile int)priv->refs++ == 0)
         sg2002_i2c_init(priv);
-    }
 
 #ifndef CONFIG_I2C_POLLED
     if (irq_attach(priv->config->irq, sg2002_i2c_irq_handle, priv) == OK)

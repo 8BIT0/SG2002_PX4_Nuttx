@@ -111,6 +111,8 @@ struct mbox_dev_s
   FAR const struct mbox_ops_s *ops;
 };
 
+int mbox_register(FAR struct mbox_dev_s *mbox);
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/

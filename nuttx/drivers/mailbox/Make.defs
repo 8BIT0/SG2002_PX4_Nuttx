@@ -1,7 +1,5 @@
 ############################################################################
-# arch/risc-v/src/sg2002/Make.defs
-#
-# SPDX-License-Identifier: Apache-2.0
+# drivers/mailbox/Make.defs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -20,13 +18,18 @@
 #
 ############################################################################
 
-include common/Make.defs
+# Don't build anything if there is no I2C support
 
-# Specify our HEAD assembly file.  This will be linked as
-# the first object file, so it will appear at address 0
-HEAD_ASRC = sg2002_head.S
+ifeq ($(CONFIG_MBOX),y)
 
-# Specify our C code within this directory to be included
-CHIP_CSRCS  = sg2002_start.c sg2002_irq_dispatch.c sg2002_irq.c sg2002_timerisr.c
-CHIP_CSRCS += sg2002_serial.c sg2002_allocateheap.c sg2002_mmio.c sg2002_debug.c
-CHIP_CSRCS += sg2002_i2c.c sg2002_mbox.c
+# CSRCS += i2c_read.c i2c_write.c
+
+CSRCS += mailbox_driver.c
+
+# Include mailbox driver build support
+
+DEPPATH += --dep-path mailbox
+VPATH += :mailbox
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)mailbox}
+
+endif  # CONFIG_MBOX

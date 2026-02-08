@@ -42,6 +42,7 @@ include ioexpander/Make.defs
 include lcd/Make.defs
 include leds/Make.defs
 include loop/Make.defs
+include mailbox/Make.defs
 include misc/Make.defs
 include mmcsd/Make.defs
 include modem/Make.defs

@@ -125,8 +125,6 @@ struct mbox_dev_s *sg2002_mailbox_initialize(void) {
 
     leave_critical_section(flags);
 
-    SG2002_Mailbox_TraceOut("mailbox init done\n");
-
     return (struct mbox_dev_s *)((uintptr_t)&sg2002_mailbox_priv);
 }
 

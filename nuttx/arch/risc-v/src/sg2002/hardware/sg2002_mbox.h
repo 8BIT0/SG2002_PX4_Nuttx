@@ -13,6 +13,25 @@
 
 #define SG2002_LINUX_VALID_VALID		1
 
+#define H26X_BITSTREAM_ADDR 			0x89500000  /* offset 149.0MiB */
+#define H26X_BITSTREAM_SIZE 			0x200000  	/* 2.0MiB */
+#define H26X_ENC_BUFF_ADDR 				0x89700000  /* offset 151.0MiB */
+#define H26X_ENC_BUFF_SIZE 				0x0  		/* 0.0KiB */
+#define ISP_MEM_BASE_ADDR 				0x89700000  /* offset 151.0MiB */
+#define ISP_MEM_BASE_SIZE 				0x1400000  	/* 20.0MiB */
+
+typedef enum {
+	MCU_STATUS_NONOS_INIT = 1,
+	MCU_STATUS_NONOS_RUNNING,
+	MCU_STATUS_NONOS_DONE,
+	MCU_STATUS_RTOS_T1_INIT,  // before linux running
+	MCU_STATUS_RTOS_T1_RUNNING,
+	MCU_STATUS_RTOS_T2_INIT,  // after linux running
+	MCU_STATUS_RTOS_T2_RUNNING,
+	MCU_STATUS_LINUX_INIT,
+	MCU_STATUS_LINUX_RUNNING,
+} SG2002_McuStats_TypeDef;
+
 typedef enum {
 	SYS_CMD_INFO_TRANS = 0x50,
 	SYS_CMD_INFO_LINUX_INIT_DONE,
@@ -104,5 +123,22 @@ typedef struct {
 	SG2002_Resv_TypeDef resv;
 	uint32_t            param_ptr;
 } __attribute__((packed)) __attribute__((aligned(0x8))) SG2002_CMDQU_TypeDef;
+
+typedef struct {
+	uint32_t conf_magic;
+	uint32_t conf_size;  //conf_size exclude mcu_status & linux_status
+	uint32_t isp_buffer_addr;
+	uint32_t isp_buffer_size;
+	uint32_t encode_img_addr;
+	uint32_t encode_img_size;
+	uint32_t encode_buf_addr;
+	uint32_t encode_buf_size;
+	uint8_t  dump_print_enable;
+	uint8_t  dump_print_size_idx;
+	uint16_t image_type;
+	uint16_t checksum; // checksum exclude mcu_status & linux_status
+	uint8_t  mcu_status;
+	uint8_t  linux_status;
+} __attribute__((packed)) __attribute__((aligned(0x40))) transfer_config_t;
 
 #endif

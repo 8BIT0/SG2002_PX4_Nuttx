@@ -1,111 +1,136 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) Cvitek Co., Ltd. 2019-2022. All rights reserved.
- *
- * File Name: cvi_spinlock.c
- * Description:
- */
+#include <nuttx/config.h>
 
-#include "stdint.h"
-#include "types.h"
-#include "csr.h"
-#include "csi_rv64_gcc.h"
-#include "core_rv64.h"
-#include "arch_time.h"
-#include "top_reg.h"
-#include "cvi_spinlock.h"
-#include "delay.h"
-#include "mmio.h"
+#include <sys/types.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <assert.h>
+#include <errno.h>
+#include <debug.h>
 
-static unsigned long reg_base = SPINLOCK_REG_BASE;
-static unsigned char lockCount[SPIN_MAX+1] = {0};
+#include <nuttx/arch.h>
+#include <nuttx/irq.h>
+#include <nuttx/clock.h>
+#include <nuttx/semaphore.h>
 
-void cvi_spinlock_init(void) {
-	reg_write_lock = xSemaphoreCreateBinary();
-	if(reg_write_lock == NULL)
-		printf("xSemaphoreCreateBinary failed!\n");
+#include <arch/board/board.h>
 
-	xSemaphoreGive(reg_write_lock);
-	printf("[%s] succeess\n" , __func__);
+#include "hardware/sg2002_spinlock.h"
+#include "hardware/sg2002_cache.h"
+#include "hardware/sg2002_mbox.h"
+#include "hardware/sg2002_mmio.h"
+
+#define MAILBOX_LOCK_SUCCESS	1
+#define MAILBOX_LOCK_FAILED		(-1)
+
+typedef struct {
+    sem_t sem;
+    uint32_t reg_base;
+    uint8_t lockCount[SG2002_Spin_MAX + 1];
+} SG2002_Spinlock_Priv_TypeDef;
+
+SG2002_Spinlock_Priv_TypeDef Spinlock_priv = {
+    .reg_base = SG2002_SPINLOCK_REG_ADDR,
+};
+
+void sg2002_spinlock_init(void) {
+    memset(&Spinlock_priv.sem, 0, sizeof(sem_t));
+
+    for (uint8_t i = 0; i < (SG2002_Spin_MAX + 1); i ++)
+        Spinlock_priv.lockCount[i] = 0;
+
+    nxsem_init(&Spinlock_priv.sem, 0, 1);
 }
 
-void cvi_spinlock_deinit(void) {
-    vSemaphoreDelete(reg_write_lock);
+void sg2002_spinlock_deinit(void) {
+    nxsem_destroy(&Spinlock_priv.sem);
+
+    for (uint8_t i = 0; i < (SG2002_Spin_MAX + 1); i ++)
+        Spinlock_priv.lockCount[i] = 0;
 }
 
-void spinlock_base(unsigned long mb_base) {
-	reg_base = mb_base;
-}
-
-static inline int hw_spin_trylock(hw_raw_spinlock_t *lock) {
-	writew(lock->locks, reg_base + sizeof(int) * lock->hw_field);
-	if (readw(reg_base + sizeof(int) * lock->hw_field) == lock->locks)
-		return MAILBOX_LOCK_SUCCESS;
-	return MAILBOX_LOCK_FAILED;
-}
-
-int hw_spin_lock(hw_raw_spinlock_t *lock) {
-	uint64_t i = 0;
-	uint64_t loops = 1000000;
-	hw_raw_spinlock_t _lock = {.hw_field = lock->hw_field, .locks = lock->locks};
-
-	if (lock->hw_field >= SPIN_LINUX_RTOS) {
-		xSemaphoreTakeFromISR(reg_write_lock , NULL);
-		if (lockCount[lock->hw_field] == 0) {
-			lockCount[lock->hw_field]++;
-		}
-		_lock.locks = (lockCount[lock->hw_field] << 8);
-		lockCount[lock->hw_field]++;
-		xSemaphoreGiveFromISR(reg_write_lock , NULL);
-	} else {
-		unsigned long systime = GetSysTime();
-		/* lock ID can not be 0, so set it to 1 at least */
-		if ((systime & 0xFFFF) == 0)
-			systime = 1;
-		lock->locks = (unsigned short) (systime & 0xFFFF);
-	}
-
-	for (i = 0; i < loops; i++) {
-		if (hw_spin_trylock(&_lock) == MAILBOX_LOCK_SUCCESS) {
-			lock->locks = _lock.locks;
-			return MAILBOX_LOCK_SUCCESS;
-		}
-		udelay(1);
-	}
-
-	uart_puts("__spin_lock_debug fail\n");
-	
+static inline int hw_spin_trylock(SG2002_RawSpinLock_TypeDef *lock) {
+    writew(lock->locks, Spinlock_priv.reg_base + sizeof(int) * lock->hw_field);
+    
+    if (readw(Spinlock_priv.reg_base + sizeof(int) * lock->hw_field) == lock->locks)
+        return MAILBOX_LOCK_SUCCESS;
+    
     return MAILBOX_LOCK_FAILED;
 }
 
-int _hw_raw_spin_lock_irqsave(hw_raw_spinlock_t *lock) {
-	int flag = 0;
+int sg2002_spin_lock(SG2002_RawSpinLock_TypeDef *lock) {
+    uint64_t i = 0;
+    uint64_t loops = 1000000;
+    uint32_t systime = 0;
+    struct timespec time;
 
-	// save and disable irq
-	flag = (__get_MSTATUS() & 8);
-	__disable_irq();
+    SG2002_RawSpinLock_TypeDef _lock = {.hw_field = lock->hw_field, .locks = lock->locks};
 
-	// lock
-	if (hw_spin_lock(lock) == MAILBOX_LOCK_FAILED) {
-		// if spinlock failed , restore irq
-		if (flag)
-			__enable_irq();
-		uart_puts("spin lock fail! reg_val=0x%x, lock->locks=0x%x\n",
-				readw(reg_base + sizeof(int) * lock->hw_field), lock->locks);
-		return MAILBOX_LOCK_FAILED;
-	}
-	return flag;
-}
+    if (lock->hw_field >= SG2002_Spin_LINUX_RTOS) {
+        nxsem_wait(&Spinlock_priv.sem);
 
-void _hw_raw_spin_unlock_irqrestore(hw_raw_spinlock_t *lock, int flag) {
-	// unlock
-	if (readw(reg_base + sizeof(int) * lock->hw_field) == lock->locks) {
-		writew(lock->locks, reg_base + sizeof(int) * lock->hw_field);
-		// restore irq
-		if (flag)
-			__enable_irq();	
+        if (Spinlock_priv.lockCount[lock->hw_field] == 0)
+            Spinlock_priv.lockCount[lock->hw_field]++;
+        
+        _lock.locks = (Spinlock_priv.lockCount[lock->hw_field] << 8);
+        Spinlock_priv.lockCount[lock->hw_field]++;
+        
+        nxsem_post(&Spinlock_priv.sem);
     } else {
-		uart_puts("spin unlock fail! reg_val=0x%x, lock->locks=0x%x\n",
-				readw(reg_base + sizeof(int) * lock->hw_field), lock->locks);
-	}
+        memset(&time, 0, sizeof(time));
+
+        if (clock_gettime(CLOCK_REALTIME, &time) < 0)
+            return MAILBOX_LOCK_FAILED;
+
+        systime = time.tv_sec * 1000 + time.tv_nsec / 1000000;
+
+        /* lock ID can not be 0, so set it to 1 at least */
+        if ((systime & 0xFFFF) == 0)
+            systime = 1;
+
+        lock->locks = (unsigned short) (systime & 0xFFFF);
+    }
+
+    for (i = 0; i < loops; i++) {
+        if (hw_spin_trylock(&_lock) == MAILBOX_LOCK_SUCCESS) {
+            lock->locks = _lock.locks;
+            return MAILBOX_LOCK_SUCCESS;
+        }
+        
+        up_udelay(1);
+    }
+    
+    return MAILBOX_LOCK_FAILED;
 }
+
+int sg2002_raw_spin_lock_irqsave(SG2002_RawSpinLock_TypeDef *lock) {
+    // save and disable irq
+    int32_t flag = (__get_MSTATUS() & 8);
+    __disable_irq();
+
+    // lock
+    if (sg2002_spin_lock(lock) == MAILBOX_LOCK_FAILED) {
+        // if spinlock failed , restore irq
+        if (flag)
+            __enable_irq();
+    
+        return MAILBOX_LOCK_FAILED;
+    }
+
+    return flag;
+}
+
+void sg2002_raw_spin_unlock_irqrestore(SG2002_RawSpinLock_TypeDef *lock, int flag) {
+    // unlock
+    if (readw(Spinlock_priv.reg_base + sizeof(int) * lock->hw_field) != lock->locks)
+        return;
+
+    writew(lock->locks, Spinlock_priv.reg_base + sizeof(int) * lock->hw_field);
+
+    // restore irq
+    if (flag)
+        __enable_irq();	
+}
+

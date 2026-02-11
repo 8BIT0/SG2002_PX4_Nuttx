@@ -97,13 +97,12 @@ static int sg2002_mailbox_irq_handle(int irq, void *context, void *arg) {
 
             if (mb_valid) {
                 r_cmdqu = ((SG2002_CMDQU_TypeDef *)(priv->context)) + i;
-                sg2002_flush_dcache_range((uintptr_t)(&r_cmdqu->param_ptr), sizeof(uint32_t));
 
                 set_reg->cpu_mbox_set[SG2002_RECEIVE_CPU].mb_clr._clr= mb_valid;
                 set_reg->cpu_mbox_en[SG2002_RECEIVE_CPU]._info &= ~mb_valid;
                 
-                *((uint32_t *)((uintptr_t)&t_cmdqu)) = *((uint32_t *)((uintptr_t)r_cmdqu));
-                *((uint32_t *)r_cmdqu) = 0;
+                *((uint64_t *)((uintptr_t)&t_cmdqu)) = *((uint64_t *)((uintptr_t)r_cmdqu));
+                *((uint64_t *)r_cmdqu) = 0;
 
                 if (t_cmdqu.resv.valid.linux_valid == SG2002_LINUX_VALID_VALID) {
                     SG2002_Mailbox_TraceOut("i          %d\n", i);

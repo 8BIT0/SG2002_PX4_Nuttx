@@ -84,7 +84,7 @@ int sg2002_spin_lock(SG2002_RawSpinLock_TypeDef *lock) {
         if (clock_gettime(CLOCK_REALTIME, &time) < 0)
             return MAILBOX_LOCK_FAILED;
 
-        systime = time.tv_sec * 1000 + time.tv_nsec / 1000000;
+        systime = (time.tv_sec * 1000) + (time.tv_nsec / 1000000);
 
         /* lock ID can not be 0, so set it to 1 at least */
         if ((systime & 0xFFFF) == 0)

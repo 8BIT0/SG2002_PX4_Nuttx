@@ -22,9 +22,6 @@
 #include "hardware/sg2002_mbox.h"
 #include "hardware/sg2002_mmio.h"
 
-#define MAILBOX_LOCK_SUCCESS	1
-#define MAILBOX_LOCK_FAILED		(-1)
-
 typedef struct {
     sem_t sem;
     uint32_t reg_base;

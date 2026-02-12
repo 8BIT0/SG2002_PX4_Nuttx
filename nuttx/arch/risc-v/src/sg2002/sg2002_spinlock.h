@@ -6,7 +6,7 @@
 #include "chip.h"
 #include "hardware/sg2002_spinlock.h"
 
-#define __CVI_ARCH_SPIN_LOCK_UNLOCKED    { 0 }
+#define __CVI_ARCH_SPIN_LOCK_UNLOCKED { 0 }
 
 #define __CVI_RAW_SPIN_LOCK_INITIALIZER(spinlock_hw_field)   \
 	{                   \

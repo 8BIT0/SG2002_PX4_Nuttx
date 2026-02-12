@@ -20,6 +20,7 @@
 
 #include "hardware/sg2002_cache.h"
 #include "hardware/sg2002_mbox.h"
+#include "sg2002_spinlock.h"
 
 #define C906_MAGIC_HEADER                       0xA55AC906 // master cpu is c906
 #define CA53_MAGIC_HEADER                       0xA55ACA53 // master cpu is ca53
@@ -27,6 +28,10 @@
 
 #define SG2002_Mailbox_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
 // #define SG2002_Mailbox_TraceOut(fmt, ...)
+
+DEFINE_CVI_SPINLOCK(mailbox_send_lock, SG2002_Spin_MBOX);
+
+int sg2002_send(FAR struct mbox_dev_s *dev, uint32_t ch, uintptr_t msg);
 
 typedef struct {
     uint32_t reg_base;
@@ -53,7 +58,7 @@ static const sg2002_mailbox_config_s sg2002_mailbox_config = {
 };
 
 static const struct mbox_ops_s sg2002_mbox_ops = {
-    .send = NULL,
+    .send = sg2002_send,
     .registercallback = NULL,
 };
 
@@ -74,6 +79,53 @@ static bool sg2002_check_mailbox_valid(sg2002_mailbox_priv_s *priv) {
         return false;
         
     return true;
+}
+
+int sg2002_send(FAR struct mbox_dev_s *dev, uint32_t ch, uintptr_t msg) {
+    sg2002_mailbox_priv_s *priv = (sg2002_mailbox_priv_s *)((uintptr_t)dev);
+    SG2002_CMDQU_TypeDef *cmdqu_tmp = ((SG2002_CMDQU_TypeDef *)((uintptr_t)priv->context));
+    int32_t flags = 0;
+    bool proto = false;
+
+    if ((priv == NULL) || (cmdqu_tmp == NULL))
+        return -1;
+
+    drv_spin_lock_irqsave(&mailbox_send_lock, flags);
+    
+    if (flags == MAILBOX_LOCK_FAILED) {
+        SG2002_Mailbox_TraceOut("mailbox send spin lock failed\n");
+        return -1;
+    }
+
+    for (uint8_t valid = 0; valid < SG2002_MAILBOX_MAX_NUM; valid ++) {
+        if ((cmdqu_tmp->resv.valid.linux_valid == 0) && (cmdqu_tmp->resv.valid.rtos_valid == 0)) {
+            cmdqu_tmp->resv.valid.rtos_valid = 1;
+
+            /* test */
+            cmdqu_tmp->ip_id = 0xAA;
+            cmdqu_tmp->cmd_id = 0xBB;
+            cmdqu_tmp->param_ptr = 10000;
+
+            // clear mailbox
+            priv->set_reg->cpu_mbox_set[SG2002_SEND_TO_CPU].mb_clr._clr = (1 << valid);
+            
+            // trigger mailbox valid to rtos
+            priv->set_reg->cpu_mbox_en[SG2002_SEND_TO_CPU]._info |= (1 << valid);
+            priv->set_reg->mbox_set._set = (1 << valid);
+            
+            proto = true;
+            break;
+        }
+
+        cmdqu_tmp ++;
+    }
+
+    drv_spin_unlock_irqrestore(&mailbox_send_lock, flags);
+
+    if (!proto)
+        return -1;
+
+    return 0;
 }
 
 static int sg2002_mailbox_irq_handle(int irq, void *context, void *arg) {
@@ -105,7 +157,6 @@ static int sg2002_mailbox_irq_handle(int irq, void *context, void *arg) {
                 *((uint64_t *)r_cmdqu) = 0;
 
                 if (t_cmdqu.resv.valid.linux_valid == SG2002_LINUX_VALID_VALID) {
-                    SG2002_Mailbox_TraceOut("i          %d\n", i);
                     SG2002_Mailbox_TraceOut("ip_id      %d\n", t_cmdqu.ip_id);
                     SG2002_Mailbox_TraceOut("cmd_id     %d\n", t_cmdqu.cmd_id);
                     SG2002_Mailbox_TraceOut("block      %s\n", t_cmdqu.block ? "true" : "false");
@@ -149,9 +200,10 @@ static void sg2002_get_comm_info(void) {
         sg2002_mailbox_priv.transfer_config.image_type = 0;
         sg2002_mailbox_priv.transfer_config.dump_print_enable = 0;
         sg2002_mailbox_priv.transfer_config.dump_print_size_idx = 0;
-        for (int i = 0, checksum = 0; i < sg2002_mailbox_priv.transfer_config.conf_size; i++, ptr++) {
+        for (int i = 0; i < sg2002_mailbox_priv.transfer_config.conf_size; i++, ptr++) {
             checksum += *ptr;
         }
+
         sg2002_mailbox_priv.transfer_config.checksum = checksum;
     }
 
@@ -168,6 +220,9 @@ struct mbox_dev_s *sg2002_mailbox_initialize(void) {
     sg2002_mailbox_priv.set_reg = (SG2002_MailboxSet_Reg_TypeDef *)((uintptr_t)(sg2002_mailbox_priv.config->reg_base));
     sg2002_mailbox_priv.done_reg = (SG2002_MailboxSetDone_Reg_TypeDef *)((uintptr_t)(sg2002_mailbox_priv.config->done_base));
     sg2002_mailbox_priv.context = (uint32_t *)((uintptr_t)(sg2002_mailbox_priv.config->context_base));
+
+    /* spinlock init */
+    sg2002_spinlock_init();
 
     /* cache init */
     sg2002_get_comm_info();
@@ -187,3 +242,4 @@ struct mbox_dev_s *sg2002_mailbox_initialize(void) {
 int sg2002_mailbox_uninitialize(struct mbox_dev_s *dev) {
     return -1;
 }
+

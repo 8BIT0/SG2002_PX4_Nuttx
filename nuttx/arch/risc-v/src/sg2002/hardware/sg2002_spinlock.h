@@ -42,6 +42,9 @@
 #define __STATIC_INLINE         static inline
 #endif
 
+#define MAILBOX_LOCK_SUCCESS    1
+#define MAILBOX_LOCK_FAILED     (-1)
+
 typedef enum {
 	SG2002_Spin_LINUX_RTOS = 4, // this spinlock field is used for linux & rtos
 	SG2002_Spin_MBOX = SG2002_Spin_LINUX_RTOS,

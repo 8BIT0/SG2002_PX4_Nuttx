@@ -28,11 +28,25 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+
+#include <sys/types.h>
+#include <stdint.h>
 #include <stdbool.h>
+
+#include <nuttx/fs/ioctl.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/* Command:      MBOXIOC_SEND
+ * Description:  Perform an mailbox send
+ * Argument:     A reference to an instance of struct mbox_send_s.
+ * Dependencies: CONFIG_MBOX_DRIVER
+ */
+
+#define MBOXIOC_SEND      _MBOXIOC(0x0001)
+#define MBOXIOC_SEND_WAIT _MBOXIOC(0x0002)
 
 /* Access macros ************************************************************/
 
@@ -95,6 +109,12 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
+
+struct mbox_transfer_s {
+  uint8_t ip_id;
+  uint8_t cmd_id;
+  uint32_t param_ptr;
+};
 
 struct mbox_dev_s;
 typedef CODE int (*mbox_receive_t)(FAR void *arg, uintptr_t msg);

@@ -430,7 +430,7 @@ static int ee24xx_open(FAR struct file *filep)
   }
   printf("\n\n");
 
-  read_all_page(eedev);
+  // read_all_page(eedev);
 
   if ((eedev->refs + 1) == 0) {
       ret = -EMFILE;

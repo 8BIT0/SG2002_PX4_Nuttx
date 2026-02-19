@@ -26,12 +26,13 @@
 #define CA53_MAGIC_HEADER                       0xA55ACA53 // master cpu is ca53
 #define RTOS_MAGIC_HEADER                       C906_MAGIC_HEADER
 
-#define SG2002_Mailbox_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
-// #define SG2002_Mailbox_TraceOut(fmt, ...)
+// #define SG2002_Mailbox_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
+#define SG2002_Mailbox_TraceOut(fmt, ...)
 
 DEFINE_CVI_SPINLOCK(mailbox_send_lock, SG2002_Spin_MBOX);
 
-int sg2002_send(FAR struct mbox_dev_s *dev, uint32_t ch, uintptr_t msg);
+static int sg2002_mailbox_send(FAR struct mbox_dev_s *dev, uint32_t ch, uintptr_t msg);
+static int sg2002_mailbox_registercallback(FAR struct mbox_dev_s *dev, uint32_t ch, mbox_receive_t callback, FAR void *arg);
 
 typedef struct {
     uint32_t reg_base;
@@ -41,6 +42,16 @@ typedef struct {
 } sg2002_mailbox_config_s;
 
 typedef struct {
+    void *prv_item;
+    void *nxt_item;
+
+    uint8_t ip_id;
+    uint8_t cmd_id;
+    
+    mbox_receive_t *cb_func;
+} sg2002_mailbox_rx_cb_item_s;
+
+typedef struct {
     const struct mbox_ops_s *ops;
 
     const sg2002_mailbox_config_s *config;
@@ -48,6 +59,8 @@ typedef struct {
     SG2002_MailboxSetDone_Reg_TypeDef *done_reg;
     uint32_t *context;
     transfer_config_t transfer_config;
+    
+    sg2002_mailbox_rx_cb_item_s *cb_list;
 } sg2002_mailbox_priv_s;
 
 static const sg2002_mailbox_config_s sg2002_mailbox_config = {
@@ -58,8 +71,8 @@ static const sg2002_mailbox_config_s sg2002_mailbox_config = {
 };
 
 static const struct mbox_ops_s sg2002_mbox_ops = {
-    .send = sg2002_send,
-    .registercallback = NULL,
+    .send = sg2002_mailbox_send,
+    .registercallback = sg2002_mailbox_registercallback,
 };
 
 static sg2002_mailbox_priv_s sg2002_mailbox_priv = {
@@ -81,13 +94,14 @@ static bool sg2002_check_mailbox_valid(sg2002_mailbox_priv_s *priv) {
     return true;
 }
 
-int sg2002_send(FAR struct mbox_dev_s *dev, uint32_t ch, uintptr_t msg) {
+static int sg2002_mailbox_send(FAR struct mbox_dev_s *dev, uint32_t ch, uintptr_t msg) {
     sg2002_mailbox_priv_s *priv = (sg2002_mailbox_priv_s *)((uintptr_t)dev);
     SG2002_CMDQU_TypeDef *cmdqu_tmp = ((SG2002_CMDQU_TypeDef *)((uintptr_t)priv->context));
     int32_t flags = 0;
     bool proto = false;
+    FAR struct mbox_transfer_s *transfer = (FAR struct mbox_transfer_s *)((uintptr_t)msg);
 
-    if ((priv == NULL) || (cmdqu_tmp == NULL))
+    if ((priv == NULL) || (cmdqu_tmp == NULL) || (transfer == NULL))
         return -1;
 
     drv_spin_lock_irqsave(&mailbox_send_lock, flags);
@@ -101,15 +115,20 @@ int sg2002_send(FAR struct mbox_dev_s *dev, uint32_t ch, uintptr_t msg) {
         if ((cmdqu_tmp->resv.valid.linux_valid == 0) && (cmdqu_tmp->resv.valid.rtos_valid == 0)) {
             cmdqu_tmp->resv.valid.rtos_valid = 1;
 
-            /* test */
-            cmdqu_tmp->ip_id = 0xAA;
-            cmdqu_tmp->cmd_id = 0xBB;
-            cmdqu_tmp->param_ptr = 10000;
+            cmdqu_tmp->ip_id = transfer->ip_id;
+            cmdqu_tmp->cmd_id = transfer->cmd_id;
+            cmdqu_tmp->param_ptr = transfer->param_ptr;
 
-            // clear mailbox
+            SG2002_Mailbox_TraceOut("mailbox index:             %d\n", valid);
+            SG2002_Mailbox_TraceOut("mailbox addr:              0x%08x\n", cmdqu_tmp);
+            SG2002_Mailbox_TraceOut("mailbox send ip_id:        %d\n", cmdqu_tmp->ip_id);
+            SG2002_Mailbox_TraceOut("mailbox send cmd_id:       %d\n", cmdqu_tmp->cmd_id);
+            SG2002_Mailbox_TraceOut("mailbox send param_ptr:    %d\n", cmdqu_tmp->param_ptr);
+
+            /* clear mailbox */
             priv->set_reg->cpu_mbox_set[SG2002_SEND_TO_CPU].mb_clr._clr = (1 << valid);
             
-            // trigger mailbox valid to rtos
+            /* trigger mailbox valid to rtos */
             priv->set_reg->cpu_mbox_en[SG2002_SEND_TO_CPU]._info |= (1 << valid);
             priv->set_reg->mbox_set._set = (1 << valid);
             
@@ -126,6 +145,10 @@ int sg2002_send(FAR struct mbox_dev_s *dev, uint32_t ch, uintptr_t msg) {
         return -1;
 
     return 0;
+}
+
+static int sg2002_mailbox_registercallback(FAR struct mbox_dev_s *dev, uint32_t ch, mbox_receive_t callback, FAR void *arg) {
+    return -1;
 }
 
 static int sg2002_mailbox_irq_handle(int irq, void *context, void *arg) {
@@ -226,8 +249,6 @@ struct mbox_dev_s *sg2002_mailbox_initialize(void) {
 
     /* cache init */
     sg2002_get_comm_info();
-
-    /* init spinlock */
 
     /* attach irq */
     if (irq_attach(sg2002_mailbox_priv.config->irq, sg2002_mailbox_irq_handle, &sg2002_mailbox_priv) == OK)

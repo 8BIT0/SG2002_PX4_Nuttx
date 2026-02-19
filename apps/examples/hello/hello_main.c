@@ -28,6 +28,7 @@
 #include <fcntl.h>
 
 #include <nuttx/eeprom/i2c_xx24xx.h>
+#include <nuttx/mbox/mbox.h>
 
 /****************************************************************************
  * Public Functions
@@ -40,17 +41,37 @@
 int main(int argc, FAR char *argv[])
 {
     int fd;
+    int mb;
 
     printf("Hello 8Bit!!\n");
-    fd = open("/dev/eeprom0", O_RDWR);
-    if (fd < 0) {
-        printf("Failed to open /dev/eeprom0 error code %d\n", fd);
-        return -1;
-    } else {
-        printf("/dev/eeprom0 opened successfully\n");
-    }
+    // fd = open("/dev/eeprom0", O_RDWR);
+    // if (fd < 0) {
+    //     printf("Failed to open /dev/eeprom0 error code %d\n", fd);
+    //     return -1;
+    // } else {
+    //     printf("/dev/eeprom0 opened successfully\n");
+    // }
 
     close(fd);
+
+    mb = open("/dev/mailbox", O_RDWR);
+    if (mb < 0) {
+        printf("Faile to open /dev/mailbox error code %d\n", mb);
+        return -1;
+    } else {
+        printf("/dev/mailbox opened successfully\n");
+
+        // write(mb, 0, 0x11);
+        struct mbox_transfer_s mb_tmp;
+
+        mb_tmp.ip_id = 0x06;
+        mb_tmp.cmd_id = 0xBB;
+        mb_tmp.param_ptr = 1000;
+
+        ioctl(mb, MBOXIOC_SEND, (unsigned long)((uintptr_t)&mb_tmp));
+    }
+
+    close(mb);
 
     return 0;
 }

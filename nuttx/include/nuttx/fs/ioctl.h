@@ -89,6 +89,7 @@
 #define _MTRIOBASE      (0x3100) /* Motor device ioctl commands */
 #define _MATHIOBASE     (0x3200) /* MATH device ioctl commands */
 #define _MMCSDIOBASE    (0x3300) /* MMCSD device ioctl commands */
+#define _MBOXIOBASE     (0x3400) /* MAILBOX device ioctl commands */
 #define _WLIOCBASE      (0x8b00) /* Wireless modules ioctl network commands */
 
 /* boardctl() commands share the same number space */
@@ -580,6 +581,11 @@
 
 #define _MMCSDIOCVALID(c)   (_IOC_TYPE(c) == _MMCSDIOBASE)
 #define _MMCSDIOC(nr)       _IOC(_MMCSDIOBASE, nr)
+
+/* MAILBOX drivers **********************************************************/
+
+#define _MBOXIOCVALID(c)    (_IOC_TYPE(c) == _MBOXIOBASE)
+#define _MBOXIOC(nr)        _IOC(_MBOXIOBASE, nr)
 
 /* Wireless driver network ioctl definitions ********************************/
 

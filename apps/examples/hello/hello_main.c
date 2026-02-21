@@ -61,7 +61,6 @@ int main(int argc, FAR char *argv[])
     } else {
         printf("/dev/mailbox opened successfully\n");
 
-        // write(mb, 0, 0x11);
         struct mbox_transfer_s mb_tmp;
 
         mb_tmp.ip_id = 0x06;

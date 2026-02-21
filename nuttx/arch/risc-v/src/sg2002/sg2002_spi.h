@@ -4,6 +4,8 @@
 #include <nuttx/config.h>
 #include <nuttx/spi/spi.h>
 
+#include "chip.h"
+
 struct spi_dev_s *sg2002_spibus_initialize(int port);
 
 int sg2002_spibus_uninitialize(struct spi_dev_s *dev);

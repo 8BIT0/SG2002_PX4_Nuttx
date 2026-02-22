@@ -1,7 +1,7 @@
 #ifndef __ARCH_RISCV_SRC_SG2002_HARDWARE_SG2002_SPI_H
 #define __ARCH_RISCV_SRC_SG2002_HARDWARE_SG2002_SPI_H
 
-#define SG2002_SPI_BUS_NUM                      1
+#define SG2002_SPI_BUS_NUM                      2
 
 #define SG2002_SPI_1_BASE                       0x04190000ul
 #define SG2002_SPI_2_BASE                       0x041A0000ul
@@ -423,21 +423,21 @@ typedef union {
                                                             /* 0 = spi_rxo_intr interrupt is not active prior to masking */
                                                             /* 1 = spi_rxo_intr interrupt is active prior masking */
 
-        uint32_t transmit_fifo_empty_int_status : 1;        /* bit 4
-                                                               Transmit FIFO Empty Interrupt Status */
-                                                            /* 0 = spi_txe_intr interrupt is not active after masking */
-                                                            /* 1 = spi_txe_intr interrupt is active after masking */
+        uint32_t transmit_fifo_full_raw_int_status : 1;     /* bit 4
+                                                               Receive FIFO Full Raw Interrupt Status */
+                                                            /* 0 = spi_rxf_intr interrupt is not active prior to masking */
+                                                            /* 1 = spi_rxf_intr interrupt is active prior to masking */
 
-        uint32_t transmit_fifo_empty_int_status : 1;        /* bit 5
-                                                               Transmit FIFO Empty Interrupt Status */
-                                                            /* 0 = spi_txe_intr interrupt is not active after masking */
-                                                            /* 1 = spi_txe_intr interrupt is active after masking */
+        uint32_t transmit_contention_raw_int_status : 1;    /* bit 5
+                                                               Multi-Master Contention Raw Interrupt Status. */
+                                                            /* 0 = spi_mst_intr interrupt is not active prior to masking */
+                                                            /* 1 = spi_mst_intr interrupt is active prior masking */
 
         uint32_t reserved : 26;
     } field;
 
     uint32_t val;
-} SG2002_SPI_RISR_Reg_TypeDef;
+} SG2002_SPI_RISR_Reg_TypeDef; /* read only */
 
 typedef union {
     struct {

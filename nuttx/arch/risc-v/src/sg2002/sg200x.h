@@ -8,6 +8,7 @@
 
 #include "chip.h"
 
+#include "sg2002_spi.h"
 #include "sg2002_i2c.h"
 #include "sg2002_mbox.h"
 

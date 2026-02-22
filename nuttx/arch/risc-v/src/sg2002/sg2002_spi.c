@@ -21,6 +21,9 @@
 #include "hardware/sg2002_mmio.h"
 #include "sg200x.h"
 
+// #define SG2002_SPI_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
+#define SG2002_SPI_TraceOut(fmt, ...)
+
 struct sg2002_spi_config_s {
     uint32_t base;
     uint32_t irq;

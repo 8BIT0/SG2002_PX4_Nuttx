@@ -469,20 +469,6 @@ typedef union {
 
 typedef union {
     struct {
-        uint32_t roicr : 1;                             /* bit 0
-                                                           Clear Receive FIFO Overflow Interrupt.
-                                                           This register reflects the status of the interrupt.
-                                                           A read from this register clears the spi_rxo_intr interrupt;
-                                                           writing has no effect. */
-
-        uint32_t reserved : 31;
-    } field;
-
-    uint32_t val;
-} SG2002_SPI_RXOICR_Reg_TypeDef; /* read only */
-
-typedef union {
-    struct {
         uint32_t rxuicr : 1;                            /* bit 0
                                                            Clear Receive FIFO Underflow Interrupt.
                                                            This register reflects the status of the interrupt.

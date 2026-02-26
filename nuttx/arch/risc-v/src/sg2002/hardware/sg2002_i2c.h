@@ -82,6 +82,11 @@
 #define SG2002_IC_HS_SPKLEN_OFFSET          0x0a4   /* HS spike suppression limit */
 
 typedef enum {
+    SG2002_I2C_1 = 1,
+    SG2002_I2C_3 = 3,
+} SG2002_I2C_List_TypeDef;
+
+typedef enum {
     SG2002_I2C_BUS_MODE_STANDARD    = 1,
     SG2002_I2C_BUS_MODE_FAST        = 2,
 } SG2002_I2C_BUS_MODE_TypeDef;

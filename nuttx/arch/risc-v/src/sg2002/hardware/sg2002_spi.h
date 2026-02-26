@@ -3,6 +3,8 @@
 
 #define SG2002_SPI_BUS_NUM                      2
 
+#define SG2002_SPI_REF_CLOCK                    187500000
+
 #define SG2002_SPI_1_BASE                       0x04190000ul
 #define SG2002_SPI_2_BASE                       0x041A0000ul
 
@@ -31,10 +33,25 @@
 #define SG2002_SPI_DATA_REG_OFFSET              0x060 /* (36 groups) Data Register */
 #define SG2002_SPI_RX_SAMPLE_DLY_REG_OFFSET     0x0f0 /* Rx Sample Delay Register */
 
+#define SG2002_SPI_CS_SET                       1
+#define SG2002_SPI_CS_RESET                     0
+
 typedef enum {
-    SG2002_SPI_1 = 0,
+    SG2002_SPI_1 = 1,
     SG2002_SPI_2,
 } SG2002_SPI_List_TypeDef;
+
+typedef enum {
+    SG2002_SPI_Frame_8Bit = 1,
+    SG2002_SPI_Frame_16Bit,
+} SG2002_SPI_FrameBitLen_List_TypeDef;
+
+typedef enum {
+    SG2002_SPI_Mode0 = 0,
+    SG2002_SPI_Mode1,
+    SG2002_SPI_Mode2,
+    SG2002_SPI_Mode3,
+} SG2002_SPI_Mode_List_TypeDef;
 
 typedef union {
     struct {
@@ -73,7 +90,7 @@ typedef union {
                                             /* 0: Serial clock toggles in middle of first data bit */
                                             /* 1: Serial clock toggles at start of first data bit */
 
-        uint32_t serial_lcock_polarity : 1; /* bit 7
+        uint32_t serial_clock_polarity : 1; /* bit 7
                                                Valid when the frame format (FRF) is set to Motorola SPI. 
                                                Used to select the polarity of the inactive serial clock, which is held inactive when the 
                                                SPI master is not actively transferring data on the serial bus. */
@@ -386,12 +403,12 @@ typedef union {
                                                             /* 1 = spi_rxo_intr interrupt is active after masking */
 
         uint32_t receive_fifo_full_int_status : 1;          /* bit 4 
-                                                               Receive FIFO Full Interrupt Status
+                                                               Receive FIFO Full Interrupt Status */
                                                             /* 0 = spi_rxf_intr interrupt is not active after masking */
                                                             /* 1 = spi_rxf_intr interrupt is full after masking*/
 
         uint32_t multi_master_contention_int_status : 1;    /* bit 5
-                                                               Multi-Master Contention Interrupt Status.
+                                                               Multi-Master Contention Interrupt Status. */
                                                             /* 0 = spi_mst_intr interrupt not active after masking */
                                                             /* 1 = spi_mst_intr interrupt is active after masking */
 
@@ -519,7 +536,7 @@ typedef union {
 
         uint32_t transmit_dma_en : 1;                   /* bit 1
                                                            Transmit DMA Enable.
-                                                           This bit enables/disables the transmit FIFO DMA channel.
+                                                           This bit enables/disables the transmit FIFO DMA channel. */
                                                         /* 0 = Transmit DMA disabled */
                                                         /* 1 = Transmit DMA enabled */
 

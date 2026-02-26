@@ -296,9 +296,9 @@ static bool sg2002_set_bus_speed(struct sg2002_i2c_priv_s *priv, uint32_t speed)
         return false;
 
     if ((speed <= I2C_SPEED_FAST) && (speed > I2C_SPEED_STANDARD)) {
-        i2c_speed = SG2002_I2C_BUS_MODE_FAST;
+        i2c_speed = (uint8_t)SG2002_I2C_BUS_MODE_FAST;
     } else {
-        i2c_speed = SG2002_I2C_BUS_MODE_STANDARD;
+        i2c_speed = (uint8_t)SG2002_I2C_BUS_MODE_STANDARD;
     }
 
     i2c = SG2002_Priv_2_BaseReg(priv->config->base);
@@ -450,6 +450,9 @@ static int sg2002_i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
         up_udelay(5);
         timeout --;
     }
+
+    if (timeout == 0)
+        return -1;
 
     return 0;
 }
@@ -694,7 +697,7 @@ static int sg2002_i2c_init(struct sg2002_i2c_priv_s *priv) {
     /* clear all interrupt */
     uint32_t tmp = To_SG2002_Clr_Intr_Reg_Ptr(i2c->ic_clr_intr)->val;
 
-    if ((sg2002_set_bus_speed(priv, SG2002_I2C_BUS_MODE_FAST)) | !sg2002_i2c_enctl(priv, false))
+    if (!sg2002_set_bus_speed(priv, SG2002_I2C_BUS_MODE_FAST) | !sg2002_i2c_enctl(priv, false))
         return -1;
 
     return 0;
@@ -706,7 +709,7 @@ struct i2c_master_s *sg2002_i2cbus_initialize(int port) {
 
     switch (port) {
 #ifdef CONFIG_SG2002_I2C1
-        case 1: {
+        case SG2002_I2C_1: {
             sg2002_pinmux_config(sg2002_pinmux_i2c1);
             priv = (struct sg2002_i2c_priv_s *)&sg2002_i2c1_priv;
             break;
@@ -714,7 +717,7 @@ struct i2c_master_s *sg2002_i2cbus_initialize(int port) {
 #endif
 
 #ifdef CONFIG_SG2002_I2C3
-        case 3: {
+        case SG2002_I2C_3: {
             sg2002_pinmux_config(sg2002_pinmux_i2c3);
             priv = (struct sg2002_i2c_priv_s *)&sg2002_i2c3_priv;
             break;
@@ -733,10 +736,8 @@ struct i2c_master_s *sg2002_i2cbus_initialize(int port) {
     if ((volatile int)priv->refs++ == 0)
         sg2002_i2c_init(priv);
 
-#ifndef CONFIG_I2C_POLLED
     if (irq_attach(priv->config->irq, sg2002_i2c_irq_handle, priv) == OK)
         up_enable_irq(priv->config->irq);
-#endif
 
     leave_critical_section(flags);
     return (struct i2c_master_s *)priv;

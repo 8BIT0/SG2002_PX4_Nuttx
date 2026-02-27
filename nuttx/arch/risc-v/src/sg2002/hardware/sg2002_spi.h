@@ -53,6 +53,12 @@ typedef enum {
     SG2002_SPI_Mode3,
 } SG2002_SPI_Mode_List_TypeDef;
 
+typedef enum {
+    SG2002_SPI_Transmit_Receive = 0,
+    SG2002_SPI_Transmit_Only,
+    SG2002_SPI_Receive_Only,
+} SG2002_SPI_TransMode_List_TypeDef;
+
 typedef union {
     struct {
         uint32_t data_frame_size : 4;       /* bit 3 ~ 0

@@ -136,6 +136,7 @@ struct sg2002_spi_priv_s {
     bool wait_irq;
 };
 
+#ifdef CONFIG_SG2002_SPI1
 static const struct sg2002_spi_config_s sg2002_spi1_config = {
     .base = SG2002_SPI_1_BASE,
     .irq = SG2002_IRQ_SPI1_BASE,
@@ -143,7 +144,9 @@ static const struct sg2002_spi_config_s sg2002_spi1_config = {
     .bit_len = SG2002_SPI_Frame_8Bit,
     .mode = SG2002_SPI_Mode3,
 };
+#endif
 
+#ifdef CONFIG_SG2002_SPI2
 static const struct sg2002_spi_config_s sg2002_spi2_config = {
     .base = SG2002_SPI_2_BASE,
     .irq = SG2002_IRQ_SPI2_BASE,
@@ -151,6 +154,7 @@ static const struct sg2002_spi_config_s sg2002_spi2_config = {
     .bit_len = SG2002_SPI_Frame_8Bit,
     .mode = SG2002_SPI_Mode3,
 };
+#endif
 
 /* internal function */
 static bool sg2002_check_spibus_base(uint32_t base);
@@ -187,19 +191,23 @@ static const struct spi_ops_s sg2002_spi_ops = {
     .registercallback  = NULL,
 };
 
+#ifdef CONFIG_SG2002_SPI1
 static struct sg2002_spi_priv_s sg2002_spi1_priv = {
     .ops = &sg2002_spi_ops,
     .config = &sg2002_spi1_config,
     .refs = 0,
     .in_proto = false,
 };
+#endif
 
+#ifdef CONFIG_SG2002_SPI2
 static struct sg2002_spi_priv_s sg2002_spi2_priv = {
     .ops = &sg2002_spi_ops,
     .config = &sg2002_spi2_config,
     .refs = 0,
     .in_proto = false,
 };
+#endif
 
 /*********************************************************** internal function section ***********************************************/
 
@@ -721,7 +729,7 @@ static void sg2002_spi_send_block_buff(FAR struct spi_dev_s *dev, FAR const void
         (txbuffer == NULL) || (nwords == 0) || (nwords % priv->config->bit_len))
         return;
 
-    priv->tx_buf = txbuffer;
+    priv->tx_buf = (void *)txbuffer;
     priv->tx_len = nwords / priv->config->bit_len;
 
     priv->rx_buf = NULL;
@@ -752,16 +760,19 @@ struct spi_dev_s *sg2002_spibus_initialize(int port) {
     bool state = true;
 
     switch (port) {
+#ifdef CONFIG_SG2002_SPI1
         case SG2002_SPI_1:
             sg2002_pinmux_config(sg2002_pinmux_spi1);
             priv = &sg2002_spi1_priv;
             break;
+#endif
 
+#ifdef CONFIG_SG2002_SPI2
         case SG2002_SPI_2:
             sg2002_pinmux_config(sg2002_pinmux_spi2);
             priv = &sg2002_spi2_priv;
             break;
-
+#endif
         default: return NULL;
     }
 

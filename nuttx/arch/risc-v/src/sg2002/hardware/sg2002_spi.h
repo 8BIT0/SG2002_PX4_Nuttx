@@ -306,7 +306,7 @@ typedef union {
                                                 /* 1 - SPI is actively transferring data */
 
         uint32_t transmit_fifo_not_empty : 1;   /* bit 1
-                                                   Set when the transmit FIFO contains one or more empty locations, and is cleared when the FIFO is full.
+                                                   Set when the transmit FIFO contains one or more empty locations, and is cleared when the FIFO is full. */
                                                 /* 0 - Transmit FIFO is full */
                                                 /* 1 - Transmit FIFO is not full */
 
@@ -319,7 +319,7 @@ typedef union {
 
         uint32_t receive_fifo_not_empty : 1;    /* bit 3
                                                    Set when the receive FIFO contains one or more entries and is cleared when the receive FIFO is empty.
-                                                   This bit can be polled by software to completely empty the receive FIFO.
+                                                   This bit can be polled by software to completely empty the receive FIFO. */
                                                 /* 0 - Receive FIFO is empty */
                                                 /* 1 - Receive FIFO is not empty */
 
@@ -331,7 +331,7 @@ typedef union {
 
         uint32_t transmission_error : 1;        /* bit 5
                                                    Set if the transmit FIFO is empty when a transfer is started.
-                                                   Data from the previous transmission is resent on the txd line. This bit is cleared when read.
+                                                   Data from the previous transmission is resent on the txd line. This bit is cleared when read. */
                                                 /* 0 - No error */
                                                 /* 1 - Transmission error */
 
@@ -427,7 +427,7 @@ typedef union {
 typedef union {
     struct {
         uint32_t transmit_fifo_empty_raw_int_status : 1;    /* bit 0
-                                                               Transmit FIFO Empty Raw Interrupt Status
+                                                               Transmit FIFO Empty Raw Interrupt Status */
                                                             /* 0 = spi_txe_intr interrupt is not active prior to masking */
                                                             /* 1 = spi_txe_intr interrupt is active prior masking */
 
@@ -442,7 +442,7 @@ typedef union {
                                                             /* 1 = spi_rxu_intr interrupt is active prior to masking */
 
         uint32_t receive_fifo_overflow_raw_int_status : 1;  /* bit 3
-                                                               Receive FIFO Overflow Raw Interrupt Status
+                                                               Receive FIFO Overflow Raw Interrupt Status */
                                                             /* 0 = spi_rxo_intr interrupt is not active prior to masking */
                                                             /* 1 = spi_rxo_intr interrupt is active prior masking */
 

@@ -119,7 +119,7 @@ struct sg2002_spi_config_s {
 
 struct sg2002_spi_priv_s {
     const struct spi_ops_s *ops;                    /* Standard SPI operations */
-    const struct sg2002_spi_config_s *config;       /* port configuration */
+    struct sg2002_spi_config_s *config;             /* port configuration */
 
     sem_t exclsem;                                  /* Held while chip is selected for mutual exclusion */
     uint32_t speed_hz;                              /* bus speed in hz */
@@ -130,7 +130,8 @@ struct sg2002_spi_priv_s {
     
     uint16_t rx_len;
     uint8_t *rx_buf;
-    
+
+    bool in_proto;
     int refs;                                       /* Reference count */
     bool wait_irq;
 };
@@ -138,7 +139,7 @@ struct sg2002_spi_priv_s {
 static const struct sg2002_spi_config_s sg2002_spi1_config = {
     .base = SG2002_SPI_1_BASE,
     .irq = SG2002_IRQ_SPI1_BASE,
-    .clock = SG2002_CLOCK_FREQUENCE,        /* default bus clock fequence 8M */
+    .clock = SG2002_CLOCK_FREQUENCE,                /* default bus clock fequence 8M */
     .bit_len = SG2002_SPI_Frame_8Bit,
     .mode = SG2002_SPI_Mode3,
 };
@@ -164,17 +165,21 @@ static int32_t sg2002_spi_get_status(struct sg2002_spi_priv_s *priv, bool raw);
 static void sg2002_spi_cs_ctl(struct sg2002_spi_priv_s *priv, bool state);
 
 /* external function */
-static int sg2002_spi_lock(struct spi_dev_s *dev, bool lock);
-static uint32_t sg2002_spi_send_word(struct spi_dev_s *dev, uint32_t wd);
-static void sg2002_spi_send_block_buff(struct spi_dev_s *dev, const void *txbuffer, size_t nwords);
-static void sg2002_spi_receive_block_buff(struct spi_dev_s *dev, const void *rxbuffer, size_t nwords);
+static void sg2002_spi_select_dummy(FAR struct spi_dev_s *dev, uint32_t devid, bool selected);
+static uint32_t sg2002_spi_set_freq_dummy(FAR struct spi_dev_s *dev, uint32_t frequency);
+static void sg2002_spi_setbits_dummy(FAR struct spi_dev_s *dev, int nbits);
+static void sg2002_spi_set_mode_external(FAR struct spi_dev_s *dev, enum spi_mode_e mode);
+static int sg2002_spi_lock(FAR struct spi_dev_s *dev, bool lock);
+static uint32_t sg2002_spi_send_word(FAR struct spi_dev_s *dev, uint32_t wd);
+static void sg2002_spi_send_block_buff(FAR struct spi_dev_s *dev, FAR const void *txbuffer, size_t nwords);
+static void sg2002_spi_receive_block_buff(FAR struct spi_dev_s *dev, void *rxbuffer, size_t nwords);
 
 static const struct spi_ops_s sg2002_spi_ops = {
     .lock              = sg2002_spi_lock,
-//   .select            = sg2002_spi_select,
-//   .setfrequency      = spi_setfrequency,
-//   .setmode           = spi_setmode,
-//   .setbits           = spi_setbits,
+    .select            = sg2002_spi_select_dummy,
+    .setfrequency      = sg2002_spi_set_freq_dummy,
+    .setmode           = sg2002_spi_set_mode_external,
+    .setbits           = sg2002_spi_setbits_dummy,
     .send              = sg2002_spi_send_word,
     .sndblock          = sg2002_spi_send_block_buff,
     .recvblock         = sg2002_spi_receive_block_buff,
@@ -186,12 +191,14 @@ static struct sg2002_spi_priv_s sg2002_spi1_priv = {
     .ops = &sg2002_spi_ops,
     .config = &sg2002_spi1_config,
     .refs = 0,
+    .in_proto = false,
 };
 
 static struct sg2002_spi_priv_s sg2002_spi2_priv = {
     .ops = &sg2002_spi_ops,
     .config = &sg2002_spi2_config,
     .refs = 0,
+    .in_proto = false,
 };
 
 /*********************************************************** internal function section ***********************************************/
@@ -230,7 +237,7 @@ static bool sg2002_spi_clear_all_irq_mask(struct sg2002_spi_priv_s *priv) {
 
     /* get default irq mask */
     imr_tmp.val = 0;
-    imr_tmp.val = To_SG2002_Imr_Reg(spi_reg->imr);
+    imr_tmp.val = To_SG2002_Imr_Reg(spi_reg->imr)->val;
 
     imr_tmp.field.transmit_fifo_empty_int_mask = 0;
     imr_tmp.field.transmit_fifo_overflow_int_mask = 0;
@@ -344,45 +351,69 @@ static int32_t sg2002_spi_get_status(struct sg2002_spi_priv_s *priv, bool raw) {
 
         risr.val = To_SG2002_Risr_Reg(spi_reg->risr)->val;
 
-        if (risr.field.receive_fifo_overflow_raw_int_status)
+        if (risr.field.receive_fifo_overflow_raw_int_status) {
+            SG2002_SPI_TraceOut("receive fifo overflow \n");
             return -1;
+        }
 
-        if (risr.field.receive_fifo_underflow_raw_int_status)
+        if (risr.field.receive_fifo_underflow_raw_int_status) {
+            SG2002_SPI_TraceOut("receive fifo underflow \n");
             return -2;
+        }
 
-        if (risr.field.transmit_contention_raw_int_status)
+        if (risr.field.transmit_contention_raw_int_status) {
+            SG2002_SPI_TraceOut("transmit contention \n");
             return -3;
+        }
 
-        if (risr.field.transmit_fifo_empty_raw_int_status)
+        if (risr.field.transmit_fifo_empty_raw_int_status) {
+            SG2002_SPI_TraceOut("transmit fifo empty \n");
             return -4;
+        }
 
-        if (risr.field.transmit_fifo_full_raw_int_status)
+        if (risr.field.transmit_fifo_full_raw_int_status) {
+            SG2002_SPI_TraceOut("transmit fifo full \n");
             return -5;
+        }
 
-        if (risr.field.transmit_fifo_overflow_raw_int_status)
+        if (risr.field.transmit_fifo_overflow_raw_int_status) {
+            SG2002_SPI_TraceOut("transmit fifo overflow \n");
             return -6;
+        }
     } else {
         SG2002_Isr_Reg isr;
 
         isr.val = To_SG2002_Isr_Reg(spi_reg->isr)->val;
 
-        if (isr.field.multi_master_contention_int_status)
+        if (isr.field.multi_master_contention_int_status) {
+            SG2002_SPI_TraceOut("multi master contention \n");
             return -7;
+        }
 
-        if (isr.field.receive_fifo_full_int_status)
+        if (isr.field.receive_fifo_full_int_status) {
+            SG2002_SPI_TraceOut("receive fifo full \n");
             return -8;
+        }
 
-        if (isr.field.receive_fifo_overflow_int_status)
+        if (isr.field.receive_fifo_overflow_int_status) {
+            SG2002_SPI_TraceOut("receive fifo overflow \n");
             return -9;
+        }
 
-        if (isr.field.receive_fifo_underflow_int_status)
+        if (isr.field.receive_fifo_underflow_int_status) {
+            SG2002_SPI_TraceOut("receive fifo underflow \n");
             return -10;
+        }
 
-        if (isr.field.transmit_fifo_empty_int_status)
+        if (isr.field.transmit_fifo_empty_int_status) {
+            SG2002_SPI_TraceOut("transmit fifo mepty \n");
             return -11;
+        }
 
-        if (isr.field.transmit_fifo_overflow_int_status)
+        if (isr.field.transmit_fifo_overflow_int_status) {
+            SG2002_SPI_TraceOut("transmit fifo overflow \n");
             return -12;
+        }
     }
 
     return 0;
@@ -461,10 +492,8 @@ static void sg2002_spi_cs_ctl(struct sg2002_spi_priv_s *priv, bool state) {
 }
 
 static inline uint32_t sg2002_spi_get_min(uint32_t a, uint32_t b, uint32_t c) {
-    uint32_t tmp = 0;
-
-    tmp = (a < b) ? a : b;
-    return (tmp < c) ? tmp : c;
+    uint32_t tmp = (a < b) ? a : b;
+    return ((tmp < c) ? tmp : c);
 }
 
 static inline uint32_t sg2002_spi_get_rx_max_size(struct sg2002_spi_priv_s *priv) {
@@ -549,7 +578,7 @@ static void sg2002_spi_rx(struct sg2002_spi_priv_s *priv) {
     uint16_t data_tmp = 0;
 
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_spibus_base(priv->config->base))
-        return 0;
+        return;
 
     max_trans_size = sg2002_spi_get_rx_max_size(priv);
 
@@ -569,16 +598,44 @@ static void sg2002_spi_rx(struct sg2002_spi_priv_s *priv) {
             }
 
             priv->rx_buf += (uint8_t)(priv->config->bit_len);
+            priv->rx_len --;
         }
 
-        priv->rx_len --;
         max_trans_size --;
     }
 }
 
 static void sg2002_spi_transmit(struct sg2002_spi_priv_s *priv) {
+    volatile sg2002_spi_reg_TypeDef *spi_reg = SG2002_Priv_2_BaseReg(priv->config->base);
+    SG2002_Ctrlr0_Reg ctrlr0_tmp;
+
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_spibus_base(priv->config->base))
         return;
+
+    priv->in_proto = true;
+
+    sg2002_spi_enctl(priv, false);
+    sg2002_spi_clear_all_irq_mask(priv);
+
+    /* set trans mode */
+    ctrlr0_tmp.val = To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->val;
+    if ((priv->tx_buf != NULL) && (priv->rx_buf != NULL)) {
+        ctrlr0_tmp.field.transfer_mode = SG2002_SPI_Transmit_Receive;
+    } else if ((priv->tx_buf != NULL) && (priv->rx_buf == NULL)) {
+        ctrlr0_tmp.field.transfer_mode = SG2002_SPI_Receive_Only;
+    } else if ((priv->tx_buf == NULL) && (priv->rx_buf != NULL)) {
+        ctrlr0_tmp.field.transfer_mode = SG2002_SPI_Transmit_Only;
+    } else {
+        sg2002_spi_enctl(priv, true);
+        return;
+    }
+
+    To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->val = ctrlr0_tmp.val;
+
+    sg2002_spi_cs_ctl(priv, true);
+    sg2002_spi_enctl(priv, true);
+
+    up_udelay(10);
 
     do {
         sg2002_spi_tx(priv);
@@ -589,11 +646,45 @@ static void sg2002_spi_transmit(struct sg2002_spi_priv_s *priv) {
             return;
 
     } while (priv->rx_len && priv->tx_len);
+    
+    priv->in_proto = false;
 }
 
 /*********************************************************** external function section ***********************************************/
+static void sg2002_spi_select_dummy(FAR struct spi_dev_s *dev, uint32_t devid, bool selected) {
+    return;
+}
 
-static int sg2002_spi_lock(struct spi_dev_s *dev, bool lock) {
+static uint32_t sg2002_spi_set_freq_dummy(FAR struct spi_dev_s *dev, uint32_t frequency) {
+    return 0;
+}
+
+static void sg2002_spi_setbits_dummy(FAR struct spi_dev_s *dev, int nbits) {
+    return;
+}
+
+static void sg2002_spi_set_mode_external(FAR struct spi_dev_s *dev, enum spi_mode_e mode) {
+    struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
+
+    if ((priv == NULL) || (priv->config == NULL) || \
+        !sg2002_check_spibus_base(priv->config->base) || \
+        (priv->refs == 0) || priv->in_proto)
+        return;
+
+    switch ((uint8_t) mode)
+    {
+        case SPIDEV_MODE0: priv->config->mode = SG2002_SPI_Mode0; break;
+        case SPIDEV_MODE1: priv->config->mode = SG2002_SPI_Mode1; break;
+        case SPIDEV_MODE2: priv->config->mode = SG2002_SPI_Mode2; break;
+        case SPIDEV_MODE3: priv->config->mode = SG2002_SPI_Mode3; break;
+        default:
+            return;
+    }
+
+    sg2002_spi_set_mode(priv);
+}
+
+static int sg2002_spi_lock(FAR struct spi_dev_s *dev, bool lock) {
     struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
 
     if (lock)
@@ -602,7 +693,7 @@ static int sg2002_spi_lock(struct spi_dev_s *dev, bool lock) {
     return nxsem_post(&priv->exclsem);
 }
 
-static uint32_t sg2002_spi_send_word(struct spi_dev_s *dev, uint32_t wd) {
+static uint32_t sg2002_spi_send_word(FAR struct spi_dev_s *dev, uint32_t wd) {
     struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
     uint32_t rx_data = 0;
     uint32_t tx_data = wd;
@@ -612,26 +703,26 @@ static uint32_t sg2002_spi_send_word(struct spi_dev_s *dev, uint32_t wd) {
         return 0;
 
     priv->tx_buf = (void *)&tx_data;
-    priv->tx_len = sizeof(tx_data);
+    priv->tx_len = sizeof(tx_data) / priv->config->bit_len;
 
     priv->rx_buf = (void *)&rx_data;
-    priv->rx_len = sizeof(rx_data);
+    priv->rx_len = sizeof(rx_data) / priv->config->bit_len;
  
     sg2002_spi_transmit(priv);
 
     return rx_data;
 }
 
-static void sg2002_spi_send_block_buff(struct spi_dev_s *dev, const void *txbuffer, size_t nwords) {
+static void sg2002_spi_send_block_buff(FAR struct spi_dev_s *dev, FAR const void *txbuffer, size_t nwords) {
     struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
     
     if ((priv == NULL) || (priv->config == NULL) || \
         !sg2002_check_spibus_base(priv->config->base) || (priv->refs == 0) || \
-        (txbuffer == NULL) || (nwords == 0))
+        (txbuffer == NULL) || (nwords == 0) || (nwords % priv->config->bit_len))
         return;
 
     priv->tx_buf = txbuffer;
-    priv->tx_len = nwords;
+    priv->tx_len = nwords / priv->config->bit_len;
 
     priv->rx_buf = NULL;
     priv->rx_len = 0;
@@ -639,19 +730,19 @@ static void sg2002_spi_send_block_buff(struct spi_dev_s *dev, const void *txbuff
     sg2002_spi_transmit(priv);
 }
 
-static void sg2002_spi_receive_block_buff(struct spi_dev_s *dev, const void *rxbuffer, size_t nwords) {
+static void sg2002_spi_receive_block_buff(FAR struct spi_dev_s *dev, void *rxbuffer, size_t nwords) {
     struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
     
     if ((priv == NULL) || (priv->config == NULL) || \
         !sg2002_check_spibus_base(priv->config->base) || (priv->refs == 0) || \
-        (rxbuffer == NULL) || (nwords == 0))
+        (rxbuffer == NULL) || (nwords == 0) || (nwords % priv->config->bit_len))
         return;
 
     priv->tx_buf = NULL;
     priv->tx_len = 0;
 
     priv->rx_buf = rxbuffer;
-    priv->rx_len = nwords;
+    priv->rx_len = nwords / priv->config->bit_len;
 
     sg2002_spi_transmit(priv);
 }

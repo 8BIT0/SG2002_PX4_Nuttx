@@ -20,6 +20,18 @@
 #define SG2002_GPIO_EXT_PORTA_OFFSET        0x50
 #define SG2002_GPIO_LS_SYNC_OFFSET          0x60
 
+typedef enum {
+    SG2002_GPIO_Input = 0,
+    SG2002_GPIO_Output,
+} SG2002_GPIO_DirType_List;
+
+typedef enum {
+    SG2002_INT_LowLevel = 0,
+    SG2002_INT_HighLevel,
+    SG2002_INT_FallingEdge,
+    SG2002_INT_RisingEdge,
+} SG2002_GPIO_InterruptType_List;
+
 typedef struct{
     uint32_t val;
 } SG2002_GPIO_SWPortA_DR_Reg_TyeDef;

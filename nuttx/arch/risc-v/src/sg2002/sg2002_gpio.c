@@ -17,9 +17,26 @@
 
 #include <arch/board/board.h>
 
+#include "hardware/sg2002_mmio.h"
+#include "hardware/sg2002_gpio.h"
+#include "sg2002_gpio.h"
+
+typedef struct {
+    const uint32_t base_addr;
+    uint32_t pin_config;
+    uint32_t pin_dir;
+} SG2002_Config_Info_TypeDef;
+
+static SG2002_Config_Info_TypeDef SG2002_Conf[4] = {
+    {SG2002_GPIO0_BASE, 0, 0},
+    {SG2002_GPIO1_BASE, 0, 0},
+    {SG2002_GPIO2_BASE, 0, 0},
+    {SG2002_GPIO3_BASE, 0, 0}
+};
+
 typedef reg_t volatile uint32_t;
 
-#define SG2002_Priv_2_BaseReg(x)                    (volatile sg2002_gpio_reg_TypeDef *)((uintptr_t)(x))
+#define SG2002_Port_2_BaseReg(x)                    (volatile sg2002_gpio_reg_TypeDef *)((uintptr_t)(x))
 
 #define To_SG2002_GPIO_SWPortA_DR_Reg_Ptr(x)        ((volatile SG2002_GPIO_SWPortA_DR_Reg_TyeDef        *)(uintptr_t)&(x))
 #define To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(x)       ((volatile SG2002_GPIO_SWPortA_DDR_Reg_TypeDef      *)(uintptr_t)&(x))
@@ -51,7 +68,51 @@ typedef struct {
     reg_t ls_sync;                          /* 0x60 */
 } sg2002_gpio_reg_TypeDef;
 
-static void sg2002_gpio_set_dir() {
+static bool sg2002_gpio_check_base(sg2002_gpioset_t pin) {
+    if (pin.pin < 32) {
+        switch (pin.port) {
+            case 0:
+            case 1:
+            case 2:
+            case 3:  return true;
+            default: break;
+        }
+    }
+
+    return false;
+}
+
+static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
+    uint32_t mask = 0;
+    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
+
+    if (!sg2002_gpio_check_base(pin))
+        return;
+
+    mask = 1 << pin.pin;
+    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.port].base_addr);
+    if ((SG2002_GPIO_DirType_List)dir == SG2002_GPIO_Input) {
+        ddr_reg_val &= !mask;
+        To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val &= !mask;
+    } else {
+        To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val |= mask;
+    }
+}
+
+void sg2002_gpio_write(sg2002_gpioset_t pinset, bool value) {
 
 }
+
+bool sg2002_gpio_read(sg2002_gpioset_t pinset) {
+
+}
+
+int sg2002_gpio_set_event(sg2002_gpioset_t pinset, bool risingedge, bool fallingedge, bool event, xcpt_t func, void *arg) {
+
+}
+
+void sg2002_gpio_init(void) {
+
+}
+
 

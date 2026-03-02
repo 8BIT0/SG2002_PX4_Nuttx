@@ -19,6 +19,21 @@
 
 typedef reg_t volatile uint32_t;
 
+#define SG2002_Priv_2_BaseReg(x)                    (volatile sg2002_gpio_reg_TypeDef *)((uintptr_t)(x))
+
+#define To_SG2002_GPIO_SWPortA_DR_Reg_Ptr(x)        ((volatile SG2002_GPIO_SWPortA_DR_Reg_TyeDef        *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(x)       ((volatile SG2002_GPIO_SWPortA_DDR_Reg_TypeDef      *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_IntEn_Reg_Ptr(x)             ((volatile SG2002_GPIO_IntEN_Reg_TypeDef            *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_IntMask_Reg_Ptr(x)           ((volatile SG2002_GPIO_IntMask_Reg_TypeDef          *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_IntType_Level_Reg_Ptr(x)     ((volatile SG2002_GPIO_IntType_Level_Reg_TypeDef    *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_IntPriority_Reg_Ptr(x)       ((volatile SG2002_GPIO_Int_Priority_Reg_TypeDef     *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_IntStatus_Reg_Ptr(x)         ((volatile SG2002_GPIO_IntStatus_Reg_TypeDef        *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_RawIntStatus_Reg_Ptr(x)      ((volatile SG2002_GPIO_RawIntStatus_Reg_TypeDef     *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_Debounce_Reg_Ptr(x)          ((volatile SG2002_GPIO_Debounce_Reg_TypeDef         *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_PortA_EOI_Reg_Ptr(x)         ((volatile SG2002_GPIO_PortA_EOI_Reg_TypeDef        *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_EXT_PortA_Reg_Ptr(x)         ((volatile SG2002_GPIO_EXT_PortA_Reg_TypeDef        *)(uintptr_t)&(x))
+#define To_SG2002_GPIO_LS_Sync_Reg_Ptr(x)           ((volatile SG2002_GPIO_LS_Sync_Reg_TypeDef          *)(uintptr_t)&(x))
+
 typedef struct {
     reg_t swporta_dr;                       /* 0x00 */
     reg_t swporta_ddr;                      /* 0x04 */
@@ -35,4 +50,8 @@ typedef struct {
     reg_t res_2[3];                         /* 0x54 ~ 0x5C */
     reg_t ls_sync;                          /* 0x60 */
 } sg2002_gpio_reg_TypeDef;
+
+static void sg2002_gpio_set_dir() {
+
+}
 

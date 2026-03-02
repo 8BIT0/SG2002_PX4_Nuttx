@@ -1,10 +1,10 @@
 #ifndef __ARCH_RISCV_SRC_SG2002_HARDWARE_SG2002_GPIO_H
 #define __ARCH_RISCV_SRC_SG2002_HARDWARE_SG2002_GPIO_H
 
-#define SG2002_GPIOA_BASE                   0x03020000ul
-#define SG2002_GPIOB_BASE                   0x03021000ul
-#define SG2002_GPIOC_BASE                   0x03022000ul
-#define SG2002_GPIOD_BASE                   0x03023000ul
+#define SG2002_GPIO0_BASE                   0x03020000ul    /* GPIO A */
+#define SG2002_GPIO1_BASE                   0x03021000ul    /* GPIO B */
+#define SG2002_GPIO2_BASE                   0x03022000ul    /* GPIO C */
+#define SG2002_GPIO3_BASE                   0x03023000ul    /* GPIO D */
 
 /* register offset definition */
 #define SG2002_GPIO_SWPORTA_DR_OFFSET       0x00

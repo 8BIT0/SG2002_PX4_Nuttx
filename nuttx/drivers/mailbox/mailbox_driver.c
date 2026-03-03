@@ -15,7 +15,8 @@
 
 #ifdef CONFIG_MBOX
 
-#define Mailbox_TraceOut(fmt, ...) sg2002_trace_dirout(fmt, ##__VA_ARGS__)
+// #define Mailbox_TraceOut(fmt, ...) sg2002_trace_dirout(fmt, ##__VA_ARGS__)
+#define Mailbox_TraceOut(fmt, ...)
 
 #define DEVNAME_FMT    "/dev/mailbox"
 #define DEVNAME_FMTLEN (strlen(DEVNAME_FMT) + 1)

@@ -58,7 +58,7 @@ typedef struct {
     reg_t int_en;                           /* 0x30 */
     reg_t int_mask;                         /* 0x34 */
     reg_t int_type_level;                   /* 0x38 */
-    reg_t int_priority;                     /* 0x3C */
+    reg_t int_polarity;                     /* 0x3C */
     reg_t int_status;                       /* 0x40 */
     reg_t raw_int_status;                   /* 0x44 */
     reg_t debounce;                         /* 0x48 */
@@ -82,6 +82,67 @@ static bool sg2002_gpio_check_base(sg2002_gpioset_t pin) {
     return false;
 }
 
+static bool sg2002_gpio_check_int_type(uint8_t int_type) {
+    switch (int_type) {
+        case (uint8_t)SG2002_INT_LowLevel:
+        case (uint8_t)SG2002_INT_HighLevel:
+        case (uint8_t)SG2002_INT_FallingEdge:
+        case (uint8_t)SG2002_INT_RisingEdge:
+            return true;
+
+        default: return false;
+    }
+}
+
+/* config interrupt */
+static bool sg2002_gpio_cfg_int(sg2002_gpioset_t pin, uint8_t int_type) {
+    uint8_t mask = 0;
+    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
+
+    if (!sg2002_gpio_check_base(pin) | !sg2002_gpio_check_int_type(int_type))
+        return false;
+
+    mask = (1 << pin.pin);
+    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.port].base_addr);
+
+    /* set int type level reg */
+    if ((int_type == SG2002_INT_LowLevel) || (int_type == SG2002_INT_HighLevel)) {
+        /* level type */
+        To_SG2002_GPIO_IntType_Level_Reg_Ptr(port_reg->int_type_level)->val |= mask;
+    } else {
+        /* edge type */
+        To_SG2002_GPIO_IntType_Level_Reg_Ptr(port_reg->int_type_level)->val &= !mask;
+    }
+
+    /* set int polarity */
+    if ((int_type == SG2002_INT_HighLevel) || (int_type == SG2002_INT_RisingEdge)) {
+        /* high or rising */
+        To_SG2002_GPIO_IntPriority_Reg_Ptr(port_reg->int_polarity)->val |= mask;
+    } else {
+        /* low or falling */
+        To_SG2002_GPIO_IntPriority_Reg_Ptr(port_reg->int_polarity)->val &= !mask;
+    }
+
+    return true;
+}
+
+static void sg2002_gpio_set_int(sg2002_gpioset_t pin, bool en, uint8_t int_type) {
+    uint32_t mask = 0;
+    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
+
+    if (!sg2002_gpio_check_base(pin))
+        return;
+
+    mask = (1 << pin.pin);
+    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.port].base_addr);
+    
+    if (en) {
+        To_SG2002_GPIO_IntEn_Reg_Ptr(port_reg->int_en)->val |= mask;
+    } else {
+        To_SG2002_GPIO_IntEn_Reg_Ptr(port_reg->int_en)->val &= !mask;
+    }
+}
+
 static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
     uint32_t mask = 0;
     volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
@@ -89,25 +150,54 @@ static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
     if (!sg2002_gpio_check_base(pin))
         return;
 
-    mask = 1 << pin.pin;
+    mask = (1 << pin.pin);
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.port].base_addr);
+    
     if ((SG2002_GPIO_DirType_List)dir == SG2002_GPIO_Input) {
-        ddr_reg_val &= !mask;
         To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val &= !mask;
     } else {
         To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val |= mask;
     }
 }
 
-void sg2002_gpio_write(sg2002_gpioset_t pinset, bool value) {
+void sg2002_gpio_write(sg2002_gpioset_t pin, bool value) {
+    uint32_t mask = 0;
+    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
 
+    if (!sg2002_gpio_check_base(pin))
+        return;
+
+    mask = (1 << pin.pin);
+    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.port].base_addr);
+
+    if (value) {
+        /* level output high */
+        To_SG2002_GPIO_SWPortA_DR_Reg_Ptr(port_reg->swporta_dr)->val |= mask;
+    } else {
+        /* level output low */
+        To_SG2002_GPIO_SWPortA_DR_Reg_Ptr(port_reg->swporta_dr)->val &= !mask;
+    }
 }
 
-bool sg2002_gpio_read(sg2002_gpioset_t pinset) {
+bool sg2002_gpio_read(sg2002_gpioset_t pin) {
+    uint32_t mask = 0;
+    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
 
+    if (!sg2002_gpio_check_base(pin))
+        return;
+
+    mask = (1 << pin.pin);
+    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.port].base_addr);
+
+    return ((To_SG2002_GPIO_EXT_PortA_Reg_Ptr(port_reg)->val & mask) != 0);
 }
 
-int sg2002_gpio_set_event(sg2002_gpioset_t pinset, bool risingedge, bool fallingedge, bool event, xcpt_t func, void *arg) {
+int sg2002_gpio_set_event(sg2002_gpioset_t pin, bool risingedge, bool fallingedge, bool event, xcpt_t func, void *arg) {
+    
+    // if (!sg2002_gpio_cfg_int(pin, uint8_t int_type))
+    //     return -1;
+
+    // sg2002_gpio_set_int(pin, bool en, uint8_t int_type);
 
 }
 

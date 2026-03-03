@@ -12,7 +12,7 @@
 #define SG2002_GPIO_INTEN_OFFSET            0x30
 #define SG2002_GPIO_INTMASK_OFFSET          0x34
 #define SG2002_GPIO_INTTYPE_LEVEL_OFFSET    0x38
-#define SG2002_GPIO_INT_PRIORITY_OFFSET     0x3C
+#define SG2002_GPIO_INT_POLARITY_OFFSET     0x3C
 #define SG2002_GPIO_INTSTATUS_OFFSET        0x40
 #define SG2002_GPIO_RAW_INTSTATUS_OFFSET    0x44
 #define SG2002_GPIO_DEBOUNCE_OFFSET         0x48
@@ -54,7 +54,7 @@ typedef struct{
 
 typedef struct{
     uint32_t val;
-} SG2002_GPIO_Int_Priority_Reg_TypeDef;
+} SG2002_GPIO_Int_Polarity_Reg_TypeDef;
 
 typedef struct{
     uint32_t val;

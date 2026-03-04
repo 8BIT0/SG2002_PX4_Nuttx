@@ -21,26 +21,34 @@
 #include "hardware/sg2002_gpio.h"
 #include "sg2002_gpio.h"
 
-static xcpt_t SG2002_GPIO_Exti_Callback_List[4][32] = {
-    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
+#define SG2002_GPIO_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
+// #define SG2002_GPIO_TraceOut(fmt, ...)
+
+typedef struct {
+    xcpt_t func;
+    void *arg;
+} SG2002_ExtiObj_TypeDef;
+
+static SG2002_ExtiObj_TypeDef SG2002_GPIO_Exti_Callback_List[4][32] = {
+    {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
     
-    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
+    {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
+
+    {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
     
-    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
-    
-    {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, \
-     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL}
+    {{NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, \
+     {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}, {NULL, NULL}},
 };
 
 typedef struct {
@@ -48,7 +56,7 @@ typedef struct {
     const uint32_t irq_base;
     uint32_t pin_config;
     uint32_t pin_dir;
-    xcpt_t irq_list;
+    SG2002_ExtiObj_TypeDef *irq_obj;
 } SG2002_Config_Info_TypeDef;
 
 static SG2002_Config_Info_TypeDef SG2002_Conf[4] = {
@@ -184,8 +192,8 @@ static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
     }
 }
 
-static void sg2002_gpio_exti_irq(int irq, FAR void *context, FAR void *arg) {
-
+static int sg2002_gpio_irq_handle(int irq, void *context, void *arg) {
+    return 0;
 }
 
 void sg2002_gpio_write(sg2002_gpioset_t pin, bool value) {
@@ -223,6 +231,7 @@ bool sg2002_gpio_read(sg2002_gpioset_t pin) {
 int sg2002_gpio_set_event(sg2002_gpioset_t pin, bool risingedge, bool fallingedge, bool event, xcpt_t func, void *arg) {
     uint8_t int_type = 0;
     
+    /* both set or both reset */
     if ((risingedge & fallingedge) || !(risingedge | fallingedge))
         return -1;
 
@@ -238,13 +247,37 @@ int sg2002_gpio_set_event(sg2002_gpioset_t pin, bool risingedge, bool fallingedg
     sg2002_gpio_set_int(pin, true);
 
     /* set callback and arg */
+    SG2002_Conf[pin.field.port].irq_obj[pin.field.pin].func = func;
+    SG2002_Conf[pin.field.port].irq_obj[pin.field.pin].arg = arg;
 
-    irq_attach(SG2002_Conf[pin.field.port].irq_base, sg2002_gpio_exti_irq, &SG2002_Conf[pin.field.port]);
+    irq_attach(SG2002_Conf[pin.field.port].irq_base, sg2002_gpio_irq_handle, &SG2002_Conf[pin.field.port]);
     up_enable_irq(SG2002_Conf[pin.field.port].irq_base);
+
+    return 0;
+}
+
+static uint32_t sg2002_get_reg_offset(uint32_t reg) {
+    volatile sg2002_gpio_reg_TypeDef *port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[0].base_addr);
+
+    return (reg - (uint32_t)((uintptr_t)port_reg));
 }
 
 void sg2002_gpio_init(void) {
+    volatile sg2002_gpio_reg_TypeDef *port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[0].base_addr);
 
+    /* show register address */
+    SG2002_GPIO_TraceOut("swporta_dr_offset\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->swporta_dr))));
+    SG2002_GPIO_TraceOut("swporta_ddr_offset\taddr: 0x%02X\n",       sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->swporta_ddr))));
+    SG2002_GPIO_TraceOut("int_en_offset\taddr: 0x%02X\n",            sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_en))));
+    SG2002_GPIO_TraceOut("int_mask_offset\taddr: 0x%02X\n",          sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_mask))));
+    SG2002_GPIO_TraceOut("int_type_level_offset\taddr: 0x%02X\n",    sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_type_level))));
+    SG2002_GPIO_TraceOut("int_polarity_offset\taddr: 0x%02X\n",      sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_polarity))));
+    SG2002_GPIO_TraceOut("int_status_offset\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_status))));
+    SG2002_GPIO_TraceOut("raw_int_status_offset\taddr: 0x%02X\n",    sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->raw_int_status))));
+    SG2002_GPIO_TraceOut("debounce_offset\taddr: 0x%02X\n",          sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->debounce))));
+    SG2002_GPIO_TraceOut("porta_eoi_offset\taddr: 0x%02X\n",         sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->porta_eoi))));
+    SG2002_GPIO_TraceOut("ext_porta_offset\taddr: 0x%02X\n",         sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->ext_porta))));
+    SG2002_GPIO_TraceOut("ls_sync_offset\taddr: 0x%02X\n",           sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->ls_sync))));
 }
 
 

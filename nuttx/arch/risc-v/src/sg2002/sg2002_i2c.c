@@ -599,6 +599,7 @@ static uint32_t sg2002_i2c_dw_read_clear_intrbits(struct sg2002_i2c_priv_s *priv
     if (intr_state & SG2002_BIT_I2C_INT_GEN_ALL)
         tmp = To_SG2002_Clr_Gen_Call_Reg_Ptr(i2c->ic_clr_gen_call)->val;
 
+    (void)tmp;
     return intr_state;
 }
 
@@ -696,6 +697,7 @@ static int sg2002_i2c_init(struct sg2002_i2c_priv_s *priv) {
 
     /* clear all interrupt */
     uint32_t tmp = To_SG2002_Clr_Intr_Reg_Ptr(i2c->ic_clr_intr)->val;
+    (void)tmp;
 
     if (!sg2002_set_bus_speed(priv, SG2002_I2C_BUS_MODE_FAST) | !sg2002_i2c_enctl(priv, false))
         return -1;

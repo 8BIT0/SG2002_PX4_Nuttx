@@ -11,5 +11,6 @@
 #include "sg2002_spi.h"
 #include "sg2002_i2c.h"
 #include "sg2002_mbox.h"
+#include "sg2002_gpio.h"
 
 #endif /* __ARCH_RISCV_SRC_SG200X_H */

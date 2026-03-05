@@ -23,6 +23,9 @@ static struct i2c_master_s *sg2002_i2c_register(int bus) {
 #endif
 
 int sg2002_bringup(void) {
+
+	sg2002_gpio_init();
+
 #if defined(CONFIG_I2C) && defined(CONFIG_SYSTEM_I2CTOOL)
     struct i2c_master_s *eeprom_i2c = NULL;
 

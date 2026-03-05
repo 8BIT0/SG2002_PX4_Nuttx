@@ -86,7 +86,7 @@ typedef volatile uint32_t reg_t;
 typedef struct {
     reg_t swporta_dr;                       /* 0x00 */
     reg_t swporta_ddr;                      /* 0x04 */
-    reg_t res_1[9];                         /* 0x08 ~ 0x2C */
+    reg_t res_1[10];                        /* 0x08 ~ 0x2C */
     reg_t int_en;                           /* 0x30 */
     reg_t int_mask;                         /* 0x34 */
     reg_t int_type_level;                   /* 0x38 */
@@ -266,18 +266,18 @@ void sg2002_gpio_init(void) {
     volatile sg2002_gpio_reg_TypeDef *port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[0].base_addr);
 
     /* show register address */
-    SG2002_GPIO_TraceOut("swporta_dr_offset\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->swporta_dr))));
-    SG2002_GPIO_TraceOut("swporta_ddr_offset\taddr: 0x%02X\n",       sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->swporta_ddr))));
-    SG2002_GPIO_TraceOut("int_en_offset\taddr: 0x%02X\n",            sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_en))));
-    SG2002_GPIO_TraceOut("int_mask_offset\taddr: 0x%02X\n",          sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_mask))));
-    SG2002_GPIO_TraceOut("int_type_level_offset\taddr: 0x%02X\n",    sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_type_level))));
-    SG2002_GPIO_TraceOut("int_polarity_offset\taddr: 0x%02X\n",      sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_polarity))));
-    SG2002_GPIO_TraceOut("int_status_offset\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_status))));
-    SG2002_GPIO_TraceOut("raw_int_status_offset\taddr: 0x%02X\n",    sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->raw_int_status))));
-    SG2002_GPIO_TraceOut("debounce_offset\taddr: 0x%02X\n",          sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->debounce))));
-    SG2002_GPIO_TraceOut("porta_eoi_offset\taddr: 0x%02X\n",         sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->porta_eoi))));
-    SG2002_GPIO_TraceOut("ext_porta_offset\taddr: 0x%02X\n",         sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->ext_porta))));
-    SG2002_GPIO_TraceOut("ls_sync_offset\taddr: 0x%02X\n",           sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->ls_sync))));
+    SG2002_GPIO_TraceOut("swporta_dr_offset\taddr: 0x%02X\n",       sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->swporta_dr))));
+    SG2002_GPIO_TraceOut("swporta_ddr_offset\taddr: 0x%02X\n",      sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->swporta_ddr))));
+    SG2002_GPIO_TraceOut("int_en_offset\t\taddr: 0x%02X\n",         sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_en))));
+    SG2002_GPIO_TraceOut("int_mask_offset\t\tadres_2dr: 0x%02X\n",  sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_mask))));
+    SG2002_GPIO_TraceOut("int_type_level_offset\taddr: 0x%02X\n",   sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_type_level))));
+    SG2002_GPIO_TraceOut("int_polarity_offset\taddr: 0x%02X\n",     sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_polarity))));
+    SG2002_GPIO_TraceOut("int_status_offset\taddr: 0x%02X\n",       sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_status))));
+    SG2002_GPIO_TraceOut("raw_int_status_offset\taddr: 0x%02X\n",   sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->raw_int_status))));
+    SG2002_GPIO_TraceOut("debounce_offset\t\taddr: 0x%02X\n",       sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->debounce))));
+    SG2002_GPIO_TraceOut("porta_eoi_offset\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->porta_eoi))));
+    SG2002_GPIO_TraceOut("ext_porta_offset\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->ext_porta))));
+    SG2002_GPIO_TraceOut("ls_sync_offset\t\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->ls_sync))));
 }
 
 

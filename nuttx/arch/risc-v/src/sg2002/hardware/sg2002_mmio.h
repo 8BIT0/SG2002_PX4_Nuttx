@@ -44,6 +44,12 @@
 #define SG2002_I2C3_AF_SCL_REG              (SG2002_PINMUX_BASE + 0xE0)      /* PP 22  */
 #define SG2002_I2C3_AF_SDA_REG              (SG2002_PINMUX_BASE + 0xE4)      /* PP 23  */
 
+/* gpioa14 reg */
+#define SG2002_GPIO_A14_REG                 (SG2002_PINMUX_BASE + 0x38)     /* PA 14 licheerv nano on board LED */
+
+/* gpioa15 reg */
+#define SG2002_GPIO_A15_REG                 (SG2002_PINMUX_BASE + 0x3C)     /* PA 15 */
+
 /* GPIO Reg Value */
 /* uart1 reg val */
 #define SG2002_JTAG_CPU_TCK_AF_UART1_TX     6
@@ -56,6 +62,12 @@
 /* i2c3 reg val */
 #define SG2002_SD1_CMD_IIC3_SCL             2
 #define SG2002_SD1_CLK_IIC3_SDA             2
+
+/* gpioa14 reg val */
+#define SG2002_GPIO_A14_REG_VAL             3
+
+/* gpioa15 reg val */
+#define SG2002_GPIO_A15_REG_VAL             3
 
 typedef enum {
     sg2002_pinmux_none = -1,

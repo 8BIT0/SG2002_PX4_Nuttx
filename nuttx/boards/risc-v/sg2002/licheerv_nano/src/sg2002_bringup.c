@@ -1,9 +1,15 @@
 #include <nuttx/config.h>
 #include <nuttx/board.h>
 #if defined(CONFIG_EEPROM)
-#if defined(CONFIG_I2C_EE_24XX)
-#include <nuttx/eeprom/i2c_xx24xx.h>
+    #if defined(CONFIG_I2C_EE_24XX)
+        #include <nuttx/eeprom/i2c_xx24xx.h>
+    #endif
 #endif
+#include <nuttx/mbox/mbox.h>
+#if defined(CONFIG_USERLED)
+    #if defined (CONFIG_USERLED_LOWER)
+        #include <nuttx/leds/userled.h>
+    #endif
 #endif
 #include <sys/types.h>
 #include <errno.h>
@@ -44,12 +50,19 @@ int sg2002_bringup(void) {
     }
 #endif
 
+#if defined(CONFIG_USERLED) && defined(CONFIG_USERLED_LOWER)
+    if (userled_lower_initialize("/dev/test_pin") < 0)
+        return -1;
+#endif
+
 #endif
 
     /* init mailbox */
     struct mbox_dev_s *mbox_dev = sg2002_mailbox_initialize();
-    if (mbox_dev != NULL)
-        mbox_register(mbox_dev);
+    if (mbox_dev != NULL) {
+        if (mbox_register(mbox_dev) < 0)
+            return -1;
+    }
 
     return 0;
 }

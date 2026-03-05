@@ -54,8 +54,6 @@ static SG2002_ExtiObj_TypeDef SG2002_GPIO_Exti_Callback_List[4][32] = {
 typedef struct {
     const uint32_t base_addr;
     const uint32_t irq_base;
-    uint32_t pin_config;
-    uint32_t pin_dir;
     SG2002_ExtiObj_TypeDef *irq_obj;
 } SG2002_Config_Info_TypeDef;
 
@@ -185,6 +183,8 @@ static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
     mask = (1 << pin.field.pin);
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
     
+    SG2002_GPIO_TraceOut("addr reg addr 0x%08X\n", (uint32_t)((uintptr_t)port_reg));
+
     if ((SG2002_GPIO_DirType_List)dir == SG2002_GPIO_Input) {
         To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val &= !mask;
     } else {
@@ -193,13 +193,14 @@ static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
 }
 
 static int sg2002_gpio_irq_handle(int irq, void *context, void *arg) {
+    SG2002_GPIO_TraceOut("EXTI irq\n");
     return 0;
 }
 
 void sg2002_gpio_write(sg2002_gpioset_t pin, bool value) {
     uint32_t mask = 0;
     volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
-
+    
     if (!sg2002_gpio_check_base(pin))
         return;
 
@@ -263,21 +264,12 @@ static uint32_t sg2002_get_reg_offset(uint32_t reg) {
 }
 
 void sg2002_gpio_init(void) {
-    volatile sg2002_gpio_reg_TypeDef *port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[0].base_addr);
+    /* set gpioa14 and gpioa15 as normal gpio */
+    mmio_clrsetbits_32(SG2002_GPIO_A14_REG, 0x07, SG2002_GPIO_A14_REG_VAL);
+    mmio_clrsetbits_32(SG2002_GPIO_A15_REG, 0x07, SG2002_GPIO_A15_REG_VAL);
 
-    /* show register address */
-    SG2002_GPIO_TraceOut("swporta_dr_offset\taddr: 0x%02X\n",       sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->swporta_dr))));
-    SG2002_GPIO_TraceOut("swporta_ddr_offset\taddr: 0x%02X\n",      sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->swporta_ddr))));
-    SG2002_GPIO_TraceOut("int_en_offset\t\taddr: 0x%02X\n",         sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_en))));
-    SG2002_GPIO_TraceOut("int_mask_offset\t\tadres_2dr: 0x%02X\n",  sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_mask))));
-    SG2002_GPIO_TraceOut("int_type_level_offset\taddr: 0x%02X\n",   sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_type_level))));
-    SG2002_GPIO_TraceOut("int_polarity_offset\taddr: 0x%02X\n",     sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_polarity))));
-    SG2002_GPIO_TraceOut("int_status_offset\taddr: 0x%02X\n",       sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->int_status))));
-    SG2002_GPIO_TraceOut("raw_int_status_offset\taddr: 0x%02X\n",   sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->raw_int_status))));
-    SG2002_GPIO_TraceOut("debounce_offset\t\taddr: 0x%02X\n",       sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->debounce))));
-    SG2002_GPIO_TraceOut("porta_eoi_offset\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->porta_eoi))));
-    SG2002_GPIO_TraceOut("ext_porta_offset\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->ext_porta))));
-    SG2002_GPIO_TraceOut("ls_sync_offset\t\taddr: 0x%02X\n",        sg2002_get_reg_offset((uint32_t)((uintptr_t)&(port_reg->ls_sync))));
+    /* set gpioa 14 as output */
+    /* set gpioa 15 as exti irq */
 }
 
 

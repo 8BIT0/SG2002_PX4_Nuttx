@@ -29,6 +29,7 @@
 
 #include <nuttx/eeprom/i2c_xx24xx.h>
 #include <nuttx/mbox/mbox.h>
+#include <nuttx/leds/userled.h>
 
 /****************************************************************************
  * Public Functions
@@ -40,8 +41,9 @@
 
 int main(int argc, FAR char *argv[])
 {
-    int fd;
-    int mb;
+    // int fd;
+    // int mb;
+    int io;
 
     printf("Hello 8Bit!!\n");
     // fd = open("/dev/eeprom0", O_RDWR);
@@ -52,25 +54,46 @@ int main(int argc, FAR char *argv[])
     //     printf("/dev/eeprom0 opened successfully\n");
     // }
 
-    close(fd);
+    // close(fd);
 
-    mb = open("/dev/mailbox", O_RDWR);
-    if (mb < 0) {
-        printf("Faile to open /dev/mailbox error code %d\n", mb);
+    // mb = open("/dev/mailbox", O_RDWR);
+    // if (mb < 0) {
+    //     printf("Faile to open /dev/mailbox error code %d\n", mb);
+    //     return -1;
+    // } else {
+    //     printf("/dev/mailbox opened successfully\n");
+
+    //     struct mbox_transfer_s mb_tmp;
+
+    //     mb_tmp.ip_id = 0x06;
+    //     mb_tmp.cmd_id = 0xBB;
+    //     mb_tmp.param_ptr = 1000;
+
+    //     ioctl(mb, MBOXIOC_SEND, (unsigned long)((uintptr_t)&mb_tmp));
+    // }
+
+    // close(mb);
+
+    io = open("/dev/test_pin", O_WRONLY);
+    
+    if (io < 0) {
+        printf("Faile to open /dev/test_pin error code %d\n", io);
         return -1;
     } else {
-        printf("/dev/mailbox opened successfully\n");
+        struct userled_s led_state;
 
-        struct mbox_transfer_s mb_tmp;
+        led_state.ul_led = 0;
 
-        mb_tmp.ip_id = 0x06;
-        mb_tmp.cmd_id = 0xBB;
-        mb_tmp.param_ptr = 1000;
-
-        ioctl(mb, MBOXIOC_SEND, (unsigned long)((uintptr_t)&mb_tmp));
+        led_state.ul_on = true;
+        ioctl(io, ULEDIOC_SETLED, &led_state);
+        
+        up_mdelay(100);
+        
+        led_state.ul_on = false;
+        ioctl(io, ULEDIOC_SETLED, &led_state);
     }
 
-    close(mb);
+    close(io);
 
     return 0;
 }

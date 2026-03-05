@@ -183,8 +183,6 @@ static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
     mask = (1 << pin.field.pin);
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
     
-    SG2002_GPIO_TraceOut("addr reg addr 0x%08X\n", (uint32_t)((uintptr_t)port_reg));
-
     if ((SG2002_GPIO_DirType_List)dir == SG2002_GPIO_Input) {
         To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val &= !mask;
     } else {
@@ -200,7 +198,7 @@ static int sg2002_gpio_irq_handle(int irq, void *context, void *arg) {
 void sg2002_gpio_write(sg2002_gpioset_t pin, bool value) {
     uint32_t mask = 0;
     volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
-    
+
     if (!sg2002_gpio_check_base(pin))
         return;
 

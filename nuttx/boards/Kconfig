@@ -24,6 +24,8 @@ config ARCH_BOARD_SG2002_LICHEERV_NANO
     bool "Licheerv Nano"
     depends on ARCH_CHIP_SG2002
 	select ARCH_HAVE_LEDS
+	select ARCH_BUTTONS
+	select ARCH_IRQBUTTONS
     ---help---
         This options selects support for NuttX on Licheerv Nano based
         on SOPHGO SG2002 SoC.

@@ -54,14 +54,15 @@ static SG2002_ExtiObj_TypeDef SG2002_GPIO_Exti_Callback_List[4][32] = {
 typedef struct {
     const uint32_t base_addr;
     const uint32_t irq_base;
+    uint32_t irq_set;
     SG2002_ExtiObj_TypeDef *irq_obj;
 } SG2002_Config_Info_TypeDef;
 
 static SG2002_Config_Info_TypeDef SG2002_Conf[4] = {
-    {SG2002_GPIO0_BASE, SG2002_IRQ_GPIO0_BASE, 0, 0, SG2002_GPIO_Exti_Callback_List[0]},
-    {SG2002_GPIO1_BASE, SG2002_IRQ_GPIO1_BASE, 0, 0, SG2002_GPIO_Exti_Callback_List[1]},
-    {SG2002_GPIO2_BASE, SG2002_IRQ_GPIO2_BASE, 0, 0, SG2002_GPIO_Exti_Callback_List[2]},
-    {SG2002_GPIO3_BASE, SG2002_IRQ_GPIO3_BASE, 0, 0, SG2002_GPIO_Exti_Callback_List[3]}
+    {SG2002_GPIO0_BASE, SG2002_IRQ_GPIO0_BASE, 0, SG2002_GPIO_Exti_Callback_List[0]},
+    {SG2002_GPIO1_BASE, SG2002_IRQ_GPIO1_BASE, 0, SG2002_GPIO_Exti_Callback_List[1]},
+    {SG2002_GPIO2_BASE, SG2002_IRQ_GPIO2_BASE, 0, SG2002_GPIO_Exti_Callback_List[2]},
+    {SG2002_GPIO3_BASE, SG2002_IRQ_GPIO3_BASE, 0, SG2002_GPIO_Exti_Callback_List[3]}
 };
 
 typedef volatile uint32_t reg_t;
@@ -124,12 +125,11 @@ static bool sg2002_gpio_check_int_type(uint8_t int_type) {
     }
 }
 
-/* config interrupt */
 static bool sg2002_gpio_cfg_int(sg2002_gpioset_t pin, uint8_t int_type) {
-    uint8_t mask = 0;
+    uint32_t mask = 0;
     volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
 
-    if (!sg2002_gpio_check_base(pin) | !sg2002_gpio_check_int_type(int_type))
+    if ((!sg2002_gpio_check_base(pin) | !sg2002_gpio_check_int_type(int_type)))
         return false;
 
     mask = (1 << pin.field.pin);
@@ -138,10 +138,10 @@ static bool sg2002_gpio_cfg_int(sg2002_gpioset_t pin, uint8_t int_type) {
     /* set int type level reg */
     if ((int_type == SG2002_INT_LowLevel) || (int_type == SG2002_INT_HighLevel)) {
         /* level type */
-        To_SG2002_GPIO_IntType_Level_Reg_Ptr(port_reg->int_type_level)->val |= mask;
+        To_SG2002_GPIO_IntType_Level_Reg_Ptr(port_reg->int_type_level)->val &= ~mask;
     } else {
         /* edge type */
-        To_SG2002_GPIO_IntType_Level_Reg_Ptr(port_reg->int_type_level)->val &= !mask;
+        To_SG2002_GPIO_IntType_Level_Reg_Ptr(port_reg->int_type_level)->val |= mask;
     }
 
     /* set int polarity */
@@ -150,7 +150,7 @@ static bool sg2002_gpio_cfg_int(sg2002_gpioset_t pin, uint8_t int_type) {
         To_SG2002_GPIO_IntPolarity_Reg_Ptr(port_reg->int_polarity)->val |= mask;
     } else {
         /* low or falling */
-        To_SG2002_GPIO_IntPolarity_Reg_Ptr(port_reg->int_polarity)->val &= !mask;
+        To_SG2002_GPIO_IntPolarity_Reg_Ptr(port_reg->int_polarity)->val &= ~mask;
     }
 
     return true;
@@ -161,7 +161,7 @@ static void sg2002_gpio_set_int(sg2002_gpioset_t pin, bool en) {
     volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
 
     if (!sg2002_gpio_check_base(pin))
-        return;
+        return false;
 
     mask = (1 << pin.field.pin);
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
@@ -169,7 +169,7 @@ static void sg2002_gpio_set_int(sg2002_gpioset_t pin, bool en) {
     if (en) {
         To_SG2002_GPIO_IntEn_Reg_Ptr(port_reg->int_en)->val |= mask;
     } else {
-        To_SG2002_GPIO_IntEn_Reg_Ptr(port_reg->int_en)->val &= !mask;
+        To_SG2002_GPIO_IntEn_Reg_Ptr(port_reg->int_en)->val &= ~mask;
     }
 }
 
@@ -184,14 +184,47 @@ static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
     
     if ((SG2002_GPIO_DirType_List)dir == SG2002_GPIO_Input) {
-        To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val &= !mask;
+        To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val &= ~mask;
     } else {
         To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val |= mask;
     }
 }
 
 static int sg2002_gpio_irq_handle(int irq, void *context, void *arg) {
-    SG2002_GPIO_TraceOut("EXTI irq\n");
+    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
+    uint32_t port = 0;
+    uint32_t clr_bit = 0;
+    uint32_t irq_set = 0;
+
+    switch (irq)
+    {
+        case SG2002_IRQ_GPIO0_BASE: port = 0; break;
+        case SG2002_IRQ_GPIO1_BASE: port = 1; break;
+        case SG2002_IRQ_GPIO2_BASE: port = 2; break;
+        case SG2002_IRQ_GPIO3_BASE: port = 3; break;
+        default: return -1;
+    }
+    
+    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[port].base_addr);
+    irq_set = SG2002_Conf[port].irq_set;
+
+    /* read intstatus reg */
+    uint32_t int_status = To_SG2002_GPIO_IntStatus_Reg_Ptr(port_reg->int_status)->val;
+
+    for (uint8_t i = 0; i < 32; i++) {
+        if ((int_status & irq_set) & (1 << i)) {
+            clr_bit |= 1 << i;
+
+            if (SG2002_Conf[port].irq_obj->func)
+                SG2002_Conf[port].irq_obj->func(irq, NULL, SG2002_Conf[port].irq_obj->arg);
+
+            SG2002_GPIO_TraceOut("EXTI on port %d pin %d\n", port, i);
+        }
+    }
+
+    /* set corresponding bit with 1 to eoi reg clear the irq */
+    To_SG2002_GPIO_PortA_EOI_Reg_Ptr(port_reg->porta_eoi)->val = clr_bit;
+    
     return 0;
 }
 
@@ -210,7 +243,7 @@ void sg2002_gpio_write(sg2002_gpioset_t pin, bool value) {
         To_SG2002_GPIO_SWPortA_DR_Reg_Ptr(port_reg->swporta_dr)->val |= mask;
     } else {
         /* level output low */
-        To_SG2002_GPIO_SWPortA_DR_Reg_Ptr(port_reg->swporta_dr)->val &= !mask;
+        To_SG2002_GPIO_SWPortA_DR_Reg_Ptr(port_reg->swporta_dr)->val &= ~mask;
     }
 }
 
@@ -229,10 +262,17 @@ bool sg2002_gpio_read(sg2002_gpioset_t pin) {
 
 int sg2002_gpio_set_event(sg2002_gpioset_t pin, bool risingedge, bool fallingedge, bool event, xcpt_t func, void *arg) {
     uint8_t int_type = 0;
+    uint32_t mask = 0;
+    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
+    UNUSED(event);
     
-    /* both set or both reset */
+    /* check port or both set or both reset */
     if ((risingedge & fallingedge) || !(risingedge | fallingedge))
         return -1;
+
+    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
+
+    mask = (1 << pin.field.pin);
 
     if (risingedge) {
         int_type = SG2002_INT_RisingEdge;
@@ -249,25 +289,22 @@ int sg2002_gpio_set_event(sg2002_gpioset_t pin, bool risingedge, bool fallingedg
     SG2002_Conf[pin.field.port].irq_obj[pin.field.pin].func = func;
     SG2002_Conf[pin.field.port].irq_obj[pin.field.pin].arg = arg;
 
-    irq_attach(SG2002_Conf[pin.field.port].irq_base, sg2002_gpio_irq_handle, &SG2002_Conf[pin.field.port]);
-    up_enable_irq(SG2002_Conf[pin.field.port].irq_base);
+    /* check irq en state */
+    if (!(SG2002_Conf[pin.field.port].irq_set & mask)) {
+        irq_attach(SG2002_Conf[pin.field.port].irq_base, sg2002_gpio_irq_handle, &SG2002_Conf[pin.field.port]);
+        up_enable_irq(SG2002_Conf[pin.field.port].irq_base);
+    }
 
+    SG2002_Conf[pin.field.port].irq_set |= mask;
+    
     return 0;
-}
-
-static uint32_t sg2002_get_reg_offset(uint32_t reg) {
-    volatile sg2002_gpio_reg_TypeDef *port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[0].base_addr);
-
-    return (reg - (uint32_t)((uintptr_t)port_reg));
 }
 
 void sg2002_gpio_init(void) {
     /* set gpioa14 and gpioa15 as normal gpio */
-    mmio_clrsetbits_32(SG2002_GPIO_A14_REG, 0x07, SG2002_GPIO_A14_REG_VAL);
+    /* on licheerv nano hardware PA14 as system notification LED */
+    // mmio_clrsetbits_32(SG2002_GPIO_A14_REG, 0x07, SG2002_GPIO_A14_REG_VAL);
     mmio_clrsetbits_32(SG2002_GPIO_A15_REG, 0x07, SG2002_GPIO_A15_REG_VAL);
-
-    /* set gpioa 14 as output */
-    /* set gpioa 15 as exti irq */
 }
 
 

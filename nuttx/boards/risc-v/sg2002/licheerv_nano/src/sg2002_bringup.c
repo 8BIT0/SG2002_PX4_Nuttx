@@ -5,12 +5,18 @@
         #include <nuttx/eeprom/i2c_xx24xx.h>
     #endif
 #endif
-#include <nuttx/mbox/mbox.h>
+
 #if defined(CONFIG_USERLED)
     #if defined (CONFIG_USERLED_LOWER)
         #include <nuttx/leds/userled.h>
     #endif
 #endif
+
+#if defined(CONFIG_ARCH_BUTTONS)
+    #include <nuttx/input/buttons.h>
+#endif
+
+#include <nuttx/mbox/mbox.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <arch/board/board.h>
@@ -49,12 +55,18 @@ int sg2002_bringup(void) {
             return -1;
     }
 #endif
+#endif
 
-#if defined(CONFIG_USERLED) && defined(CONFIG_USERLED_LOWER)
+#if defined(CONFIG_ARCH_HAVE_LEDS) && defined(CONFIG_USERLED)
+#if defined(CONFIG_USERLED_LOWER)
     if (userled_lower_initialize("/dev/test_pin") < 0)
         return -1;
 #endif
+#endif
 
+#if defined(CONFIG_ARCH_BUTTONS) && defined(CONFIG_ARCH_IRQBUTTONS)
+    if (btn_lower_initialize("/dev/test_exti") < 0)
+        return -1;
 #endif
 
     /* init mailbox */

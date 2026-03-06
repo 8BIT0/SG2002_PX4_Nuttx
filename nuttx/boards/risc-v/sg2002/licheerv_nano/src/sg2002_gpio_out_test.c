@@ -12,6 +12,7 @@
 #include <arch/board/board.h>
 
 uint32_t board_userled_initialize(void) {
+    /* fake it has 10 LED on board */
     return 10;
 }
 

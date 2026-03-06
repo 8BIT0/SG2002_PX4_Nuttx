@@ -43,7 +43,8 @@ int main(int argc, FAR char *argv[])
 {
     // int fd;
     // int mb;
-    int io;
+    // int io;
+    int exti;
 
     printf("Hello 8Bit!!\n");
     // fd = open("/dev/eeprom0", O_RDWR);
@@ -74,26 +75,36 @@ int main(int argc, FAR char *argv[])
 
     // close(mb);
 
-    io = open("/dev/test_pin", O_WRONLY);
+    // io = open("/dev/test_pin", O_WRONLY);
     
-    if (io < 0) {
-        printf("Faile to open /dev/test_pin error code %d\n", io);
-        return -1;
+    // if (io < 0) {
+    //     printf("Faile to open /dev/test_pin error code %d\n", io);
+    //     return -1;
+    // } else {
+    //     struct userled_s led_state;
+
+    //     led_state.ul_led = 0;
+
+    //     led_state.ul_on = true;
+    //     ioctl(io, ULEDIOC_SETLED, &led_state);
+        
+    //     up_mdelay(100);
+        
+    //     led_state.ul_on = false;
+    //     ioctl(io, ULEDIOC_SETLED, &led_state);
+    // }
+
+    // close(io);
+
+    exti = open("/dev/test_exti", O_RDWR);
+
+    if (exti < 0) {
+        printf("Faield to open /dev/test_exti error code %d\n", exti);
     } else {
-        struct userled_s led_state;
 
-        led_state.ul_led = 0;
-
-        led_state.ul_on = true;
-        ioctl(io, ULEDIOC_SETLED, &led_state);
-        
-        up_mdelay(100);
-        
-        led_state.ul_on = false;
-        ioctl(io, ULEDIOC_SETLED, &led_state);
     }
 
-    close(io);
-
+    close(exti);
+    
     return 0;
 }

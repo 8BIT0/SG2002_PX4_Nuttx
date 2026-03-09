@@ -38,6 +38,12 @@ int sg2002_bringup(void) {
 
 	sg2002_gpio_init();
 
+#if defined(CONFIG_SG2002_SPI2)
+    struct spi_dev_s *spi_dev = NULL;
+
+    spi_dev = sg2002_spibus_initialize(2);
+#endif
+
 #if defined(CONFIG_I2C) && defined(CONFIG_SYSTEM_I2CTOOL)
     struct i2c_master_s *eeprom_i2c = NULL;
 

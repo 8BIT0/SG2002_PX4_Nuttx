@@ -44,6 +44,18 @@
 #define SG2002_I2C3_AF_SCL_REG              (SG2002_PINMUX_BASE + 0xE0)      /* PP 22  */
 #define SG2002_I2C3_AF_SDA_REG              (SG2002_PINMUX_BASE + 0xE4)      /* PP 23  */
 
+/* spi2 reg */
+#define SG2002_SPI2_AF_CS_REG               (SG2002_PINMUX_BASE + 0xD0)
+#define SG2002_SPI2_AF_SCK_REG              (SG2002_PINMUX_BASE + 0xE4)
+#define SG2002_SPI2_AF_MOSI_REG             (SG2002_PINMUX_BASE + 0xE0)
+#define SG2002_SPI2_AF_MISO_REG             (SG2002_PINMUX_BASE + 0xDC)
+
+/* spi3 reg */
+// #define SG2002_SPI3_AF_CS_REG               (SG2002_PINMUX_BASE + )
+// #define SG2002_SPI3_AF_SCK_REG              (SG2002_PINMUX_BASE + )
+// #define SG2002_SPI3_AF_MOSI_REG             (SG2002_PINMUX_BASE + )
+// #define SG2002_SPI3_AF_MISO_REG             (SG2002_PINMUX_BASE + )
+
 /* gpioa14 reg */
 #define SG2002_GPIO_A14_REG                 (SG2002_PINMUX_BASE + 0x38)     /* PA 14 licheerv nano on board LED */
 
@@ -69,13 +81,20 @@
 /* gpioa15 reg val */
 #define SG2002_GPIO_A15_REG_VAL             3
 
+/* spi2 reg val */
+#define SG2002_SD1_D3_SPI2_CS               1
+#define SG2002_SD1_CLK_SPI2_SCK             1
+#define SG2002_SD1_D0_SPI2_MISO             1
+#define SG2002_SD1_CMD_SPI2_MOSI            1
+
 typedef enum {
     sg2002_pinmux_none = -1,
     sg2002_gpio_out = 0,
     sg2002_gpio_in,
+    sg2002_pinmux_uart0,
     sg2002_pinmux_uart1,
-    sg2002_pinmux_spi1,
     sg2002_pinmux_spi2,
+    sg2002_pinmux_spi3,
     sg2002_pinmux_i2c1,
     sg2002_pinmux_i2c3,
 } sg2002_pinmux_list;

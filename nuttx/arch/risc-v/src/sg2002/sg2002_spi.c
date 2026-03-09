@@ -21,8 +21,8 @@
 #include "hardware/sg2002_mmio.h"
 #include "sg200x.h"
 
-// #define SG2002_SPI_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
-#define SG2002_SPI_TraceOut(fmt, ...)
+#define SG2002_SPI_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
+// #define SG2002_SPI_TraceOut(fmt, ...)
 
 #define SG2002_SPI_FRAME_LEN(x)             (x - 1)
 
@@ -295,6 +295,8 @@ static bool sg2002_spi_reset(struct sg2002_spi_priv_s *priv) {
 
     ret &= sg2002_spi_enctl(priv, true);
 
+    SG2002_SPI_TraceOut("spi reset %s\n", ret ? "done" : "failed");
+
     return ret;
 }
 
@@ -478,13 +480,14 @@ static uint16_t sg2002_spi_check_fifo_depth(struct sg2002_spi_priv_s *priv) {
 
     if (priv->fifo_depth == 0) {
         for (depth = 1; depth < 256; depth ++) {
-            To_SG2002_TxFlr_Reg(spi_reg->txflr)->field.txflr = depth;
+            To_SG2002_TxFtlr_Reg(spi_reg->txftlr)->field.txftlr = depth;
 
-            if (To_SG2002_TxFlr_Reg(spi_reg->txflr)->field.txflr != depth)
+            if (To_SG2002_TxFtlr_Reg(spi_reg->txftlr)->field.txftlr != depth)
                 break;
         }
 
         priv->fifo_depth = (depth == 1) ? 0 : depth;
+        SG2002_SPI_TraceOut("spi fifo depth %d\n", priv->fifo_depth);
     }
 
     return depth;
@@ -780,6 +783,8 @@ struct spi_dev_s *sg2002_spibus_initialize(int port) {
 
     /* check tx fifo depth */
     if (sg2002_spi_check_fifo_depth(priv) == 0) {
+        SG2002_SPI_TraceOut("spi get fifo depth failed\n");
+
         sg2002_spi_enctl(priv, 0);
         return NULL;
     }
@@ -800,8 +805,10 @@ struct spi_dev_s *sg2002_spibus_initialize(int port) {
 
     state &= sg2002_spi_enctl(priv, 1);
 
-    if (!state)
+    if (!state) {
+        SG2002_SPI_TraceOut("spi init failed\n");
         return NULL;
+    }
 
     priv->refs ++;
 

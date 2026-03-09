@@ -8,6 +8,10 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
 {
     switch ((uint8_t) index)
     {
+        case sg2002_pinmux_uart0: {
+            return false;
+        }
+
         case sg2002_pinmux_uart1: {
             /* set uart1 rx pin */
             mmio_clrsetbits_32(SG2002_UART1_AF_RX_REG, 0x07, SG2002_JTAG_CPU_TMS_AF_UART1_RX);
@@ -32,28 +36,28 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             return true;
         }
 
-        case sg2002_pinmux_spi1: {
-            /* set spi 1 clk  pin */
-            // mmio_clrsetbits_32();
-            /* set spi 1 mosi pin */
-            // mmio_clrsetbits_32();
-            /* set spi 1 miso pin */
-            // mmio_clrsetbits_32();
-            /* set spi 1 cs pin */
-            // mmio_clrsetbits_32();
+        case sg2002_pinmux_spi2: {
+            /* set spi 2 clk  pin */
+            mmio_clrsetbits_32(SG2002_SPI2_AF_SCK_REG, 0x07, SG2002_SD1_CLK_SPI2_SCK);
+            /* set spi 2 miso pin */
+            mmio_clrsetbits_32(SG2002_SPI2_AF_MISO_REG, 0x07, SG2002_SD1_D0_SPI2_MISO);
+            /* set spi 2 mosi pin */
+            mmio_clrsetbits_32(SG2002_SPI2_AF_MOSI_REG, 0x07, SG2002_SD1_CMD_SPI2_MOSI);
+            /* set spi 2 cs pin */
+            mmio_clrsetbits_32(SG2002_SPI2_AF_CS_REG, 0x07, SG2002_SD1_D3_SPI2_CS);
             return true;
         }
 
-        case sg2002_pinmux_spi2: {
-            /* set spi 2 clk  pin */
+        case sg2002_pinmux_spi3: {
+            /* set spi 3 clk  pin */
             // mmio_clrsetbits_32();
-            /* set spi 2 miso pin */
+            /* set spi 3 miso pin */
             // mmio_clrsetbits_32();
-            /* set spi 2 mosi pin */
+            /* set spi 3 mosi pin */
             // mmio_clrsetbits_32();
-            /* set spi 2 cs pin */
+            /* set spi 3 cs pin */
             // mmio_clrsetbits_32();
-            return true;
+            return false;
         }
 
         default: return false;

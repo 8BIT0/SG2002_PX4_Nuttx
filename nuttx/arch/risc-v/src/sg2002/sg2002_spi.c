@@ -110,8 +110,8 @@ typedef struct {
 } sg2002_spi_reg_TypeDef;
 
 struct sg2002_spi_config_s {
-    uint32_t base;
-    uint32_t irq;
+    const uint32_t base;
+    const uint32_t irq;
     uint32_t clock;
     SG2002_SPI_FrameBitLen_List_TypeDef bit_len;
     SG2002_SPI_Mode_List_TypeDef mode;
@@ -137,7 +137,7 @@ struct sg2002_spi_priv_s {
 };
 
 #ifdef CONFIG_SG2002_SPI1
-static const struct sg2002_spi_config_s sg2002_spi1_config = {
+static struct sg2002_spi_config_s sg2002_spi1_config = {
     .base = SG2002_SPI_1_BASE,
     .irq = SG2002_IRQ_SPI1_BASE,
     .clock = SG2002_CLOCK_FREQUENCE,                /* default bus clock fequence 8M */
@@ -147,7 +147,7 @@ static const struct sg2002_spi_config_s sg2002_spi1_config = {
 #endif
 
 #ifdef CONFIG_SG2002_SPI2
-static const struct sg2002_spi_config_s sg2002_spi2_config = {
+static struct sg2002_spi_config_s sg2002_spi2_config = {
     .base = SG2002_SPI_2_BASE,
     .irq = SG2002_IRQ_SPI2_BASE,
     .clock = SG2002_CLOCK_FREQUENCE,
@@ -175,20 +175,28 @@ static void sg2002_spi_setbits_dummy(FAR struct spi_dev_s *dev, int nbits);
 static void sg2002_spi_set_mode_external(FAR struct spi_dev_s *dev, enum spi_mode_e mode);
 static int sg2002_spi_lock(FAR struct spi_dev_s *dev, bool lock);
 static uint32_t sg2002_spi_send_word(FAR struct spi_dev_s *dev, uint32_t wd);
+#if defined(CONFIG_SPI_EXCHANGE)
+static void sg2002_spi_exchange(struct spi_dev_s *dev, const void *txbuffer, void *rxbuffer, size_t nwords);
+#else
 static void sg2002_spi_send_block_buff(FAR struct spi_dev_s *dev, FAR const void *txbuffer, size_t nwords);
 static void sg2002_spi_receive_block_buff(FAR struct spi_dev_s *dev, void *rxbuffer, size_t nwords);
+#endif
 
 static const struct spi_ops_s sg2002_spi_ops = {
-    .lock              = sg2002_spi_lock,
-    .select            = sg2002_spi_select_dummy,
-    .setfrequency      = sg2002_spi_set_freq_dummy,
-    .setmode           = sg2002_spi_set_mode_external,
-    .setbits           = sg2002_spi_setbits_dummy,
-    .send              = sg2002_spi_send_word,
-    .sndblock          = sg2002_spi_send_block_buff,
-    .recvblock         = sg2002_spi_receive_block_buff,
-    .status            = NULL,
-    .registercallback  = NULL,
+    .lock               = sg2002_spi_lock,
+    .select             = sg2002_spi_select_dummy,
+    .setfrequency       = sg2002_spi_set_freq_dummy,
+    .setmode            = sg2002_spi_set_mode_external,
+    .setbits            = sg2002_spi_setbits_dummy,
+    .send               = sg2002_spi_send_word,
+#ifdef CONFIG_SPI_EXCHANGE
+    .exchange           = sg2002_spi_exchange,
+#else
+    .sndblock           = sg2002_spi_send_block_buff,
+    .recvblock          = sg2002_spi_receive_block_buff,
+#endif
+    .status             = NULL,
+    .registercallback   = NULL,
 };
 
 #ifdef CONFIG_SG2002_SPI1
@@ -362,67 +370,37 @@ static int32_t sg2002_spi_get_status(struct sg2002_spi_priv_s *priv, bool raw) {
         risr.val = To_SG2002_Risr_Reg(spi_reg->risr)->val;
 
         if (risr.field.receive_fifo_overflow_raw_int_status) {
-            SG2002_SPI_TraceOut("receive fifo overflow \n");
+            SG2002_SPI_TraceOut("status Error receive fifo overflow \n");
             return -1;
         }
 
         if (risr.field.receive_fifo_underflow_raw_int_status) {
-            SG2002_SPI_TraceOut("receive fifo underflow \n");
+            SG2002_SPI_TraceOut("status Error receive fifo underflow \n");
             return -2;
         }
 
-        if (risr.field.transmit_contention_raw_int_status) {
-            SG2002_SPI_TraceOut("transmit contention \n");
-            return -3;
-        }
-
-        if (risr.field.transmit_fifo_empty_raw_int_status) {
-            SG2002_SPI_TraceOut("transmit fifo empty \n");
-            return -4;
-        }
-
-        if (risr.field.transmit_fifo_full_raw_int_status) {
-            SG2002_SPI_TraceOut("transmit fifo full \n");
-            return -5;
-        }
-
         if (risr.field.transmit_fifo_overflow_raw_int_status) {
-            SG2002_SPI_TraceOut("transmit fifo overflow \n");
-            return -6;
+            SG2002_SPI_TraceOut("status Error transmit fifo overflow \n");
+            return -3;
         }
     } else {
         SG2002_Isr_Reg isr;
 
         isr.val = To_SG2002_Isr_Reg(spi_reg->isr)->val;
 
-        if (isr.field.multi_master_contention_int_status) {
-            SG2002_SPI_TraceOut("multi master contention \n");
-            return -7;
-        }
-
-        if (isr.field.receive_fifo_full_int_status) {
-            SG2002_SPI_TraceOut("receive fifo full \n");
-            return -8;
-        }
-
         if (isr.field.receive_fifo_overflow_int_status) {
-            SG2002_SPI_TraceOut("receive fifo overflow \n");
-            return -9;
+            SG2002_SPI_TraceOut("status Error receive fifo overflow \n");
+            return -1;
         }
 
         if (isr.field.receive_fifo_underflow_int_status) {
-            SG2002_SPI_TraceOut("receive fifo underflow \n");
-            return -10;
-        }
-
-        if (isr.field.transmit_fifo_empty_int_status) {
-            SG2002_SPI_TraceOut("transmit fifo mepty \n");
-            return -11;
+            SG2002_SPI_TraceOut("status Error receive fifo underflow \n");
+            return -2;
         }
 
         if (isr.field.transmit_fifo_overflow_int_status) {
-            SG2002_SPI_TraceOut("transmit fifo overflow \n");
-            return -12;
+            SG2002_SPI_TraceOut("status Error transmit fifo overflow \n");
+            return -3;
         }
     }
 
@@ -626,18 +604,22 @@ static void sg2002_spi_transmit(struct sg2002_spi_priv_s *priv) {
     priv->in_proto = true;
 
     sg2002_spi_enctl(priv, false);
-    sg2002_spi_clear_all_irq_mask(priv);
+    if (!sg2002_spi_clear_all_irq_mask(priv)) {
+        priv->in_proto = false;
+        return;
+    }
 
     /* set trans mode */
     ctrlr0_tmp.val = To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->val;
     if ((priv->tx_buf != NULL) && (priv->rx_buf != NULL)) {
         ctrlr0_tmp.field.transfer_mode = SG2002_SPI_Transmit_Receive;
-    } else if ((priv->tx_buf != NULL) && (priv->rx_buf == NULL)) {
-        ctrlr0_tmp.field.transfer_mode = SG2002_SPI_Receive_Only;
     } else if ((priv->tx_buf == NULL) && (priv->rx_buf != NULL)) {
+        ctrlr0_tmp.field.transfer_mode = SG2002_SPI_Receive_Only;
+    } else if ((priv->tx_buf != NULL) && (priv->rx_buf == NULL)) {
         ctrlr0_tmp.field.transfer_mode = SG2002_SPI_Transmit_Only;
     } else {
         sg2002_spi_enctl(priv, true);
+        priv->in_proto = false;
         return;
     }
 
@@ -653,8 +635,10 @@ static void sg2002_spi_transmit(struct sg2002_spi_priv_s *priv) {
         sg2002_spi_rx(priv);
 
         /* check status */
-        if (sg2002_spi_get_status(priv, true) < 0)
+        if (sg2002_spi_get_status(priv, true) < 0) {
+            priv->in_proto = false;
             return;
+        }
 
     } while (priv->rx_len && priv->tx_len);
     
@@ -713,10 +697,10 @@ static uint32_t sg2002_spi_send_word(FAR struct spi_dev_s *dev, uint32_t wd) {
         !sg2002_check_spibus_base(priv->config->base) || (priv->refs == 0))
         return 0;
 
-    priv->tx_buf = (void *)&tx_data;
+    priv->tx_buf = (uint8_t *)&tx_data;
     priv->tx_len = sizeof(tx_data) / priv->config->bit_len;
 
-    priv->rx_buf = (void *)&rx_data;
+    priv->rx_buf = (uint8_t *)&rx_data;
     priv->rx_len = sizeof(rx_data) / priv->config->bit_len;
  
     sg2002_spi_transmit(priv);
@@ -724,6 +708,24 @@ static uint32_t sg2002_spi_send_word(FAR struct spi_dev_s *dev, uint32_t wd) {
     return rx_data;
 }
 
+#if defined(CONFIG_SPI_EXCHANGE)
+static void sg2002_spi_exchange(struct spi_dev_s *dev, const void *txbuffer, void *rxbuffer, size_t nwords) {
+    struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
+    
+    if ((priv == NULL) || (priv->config == NULL) || \
+        !sg2002_check_spibus_base(priv->config->base) || (priv->refs == 0) || \
+        (rxbuffer == NULL) || (txbuffer == NULL) || (nwords == 0) || (nwords % priv->config->bit_len))
+        return;
+
+    priv->tx_buf = (uint8_t *)txbuffer;
+    priv->tx_len = nwords / priv->config->bit_len;
+
+    priv->rx_buf = rxbuffer;
+    priv->rx_len = nwords / priv->config->bit_len;
+
+    sg2002_spi_transmit(priv);
+}
+#else
 static void sg2002_spi_send_block_buff(FAR struct spi_dev_s *dev, FAR const void *txbuffer, size_t nwords) {
     struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
     
@@ -757,6 +759,7 @@ static void sg2002_spi_receive_block_buff(FAR struct spi_dev_s *dev, void *rxbuf
 
     sg2002_spi_transmit(priv);
 }
+#endif
 
 struct spi_dev_s *sg2002_spibus_initialize(int port) {
     struct sg2002_spi_priv_s *priv = NULL;

@@ -136,10 +136,10 @@ struct sg2002_spi_priv_s {
     bool wait_irq;
 };
 
-#ifdef CONFIG_SG2002_SPI1
-static struct sg2002_spi_config_s sg2002_spi1_config = {
-    .base = SG2002_SPI_1_BASE,
-    .irq = SG2002_IRQ_SPI1_BASE,
+#ifdef CONFIG_SG2002_SPI3
+static struct sg2002_spi_config_s sg2002_spi3_config = {
+    .base = SG2002_SPI_3_BASE,
+    .irq = SG2002_IRQ_SPI3_BASE,
     .clock = SG2002_CLOCK_FREQUENCE,                /* default bus clock fequence 8M */
     .bit_len = SG2002_SPI_Frame_8Bit,
     .mode = SG2002_SPI_Mode3,
@@ -199,10 +199,10 @@ static const struct spi_ops_s sg2002_spi_ops = {
     .registercallback   = NULL,
 };
 
-#ifdef CONFIG_SG2002_SPI1
-static struct sg2002_spi_priv_s sg2002_spi1_priv = {
+#ifdef CONFIG_SG2002_SPI3
+static struct sg2002_spi_priv_s sg2002_spi3_priv = {
     .ops = &sg2002_spi_ops,
-    .config = &sg2002_spi1_config,
+    .config = &sg2002_spi3_config,
     .refs = 0,
     .in_proto = false,
 };
@@ -220,7 +220,7 @@ static struct sg2002_spi_priv_s sg2002_spi2_priv = {
 /*********************************************************** internal function section ***********************************************/
 
 static bool sg2002_check_spibus_base(uint32_t base) {
-    if ((base == SG2002_SPI_1_BASE) || (base == SG2002_SPI_2_BASE))
+    if ((base == SG2002_SPI_3_BASE) || (base == SG2002_SPI_2_BASE))
         return true;
 
     return false;
@@ -315,12 +315,14 @@ static bool sg2002_spi_set_clock(struct sg2002_spi_priv_s *priv) {
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_spibus_base(priv->config->base))
         return false;
 
-    clk_div = (SG2002_SPI_REF_CLOCK + priv->config->clock - 1) / priv->config->clock;
+    clk_div = ((SG2002_SPI_REF_CLOCK + priv->config->clock - 1) / priv->config->clock) + 1;
     clk_div &= 0xFFFE;
     priv->speed_hz = SG2002_SPI_REF_CLOCK / clk_div;
 
     /* set baud register */
     To_SG2002_Baudr_Reg(spi_reg->baudr)->field.baudr = clk_div;
+
+    SG2002_SPI_TraceOut("SPI clock %d\n", priv->speed_hz);
 
     /* setting failed */
     if (To_SG2002_Baudr_Reg(spi_reg->baudr)->field.baudr != clk_div)
@@ -411,6 +413,7 @@ static bool sg2002_spi_set_mode(struct sg2002_spi_priv_s *priv) {
     volatile sg2002_spi_reg_TypeDef *spi_reg = SG2002_Priv_2_BaseReg(priv->config->base);
     uint8_t phase = 1;
     uint8_t polarity = 1;
+    SG2002_Ctrlr0_Reg ctrlr0;
 
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_spibus_base(priv->config->base))
         return false;
@@ -435,14 +438,17 @@ static bool sg2002_spi_set_mode(struct sg2002_spi_priv_s *priv) {
             break;
     }
 
-    /* write clock phase to crtlr0 register */
-    To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->field.serial_clock_phase = phase;
+    ctrlr0.val = To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->val;
 
-    /* write clock polarity to crtlr0 register */
-    To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->field.serial_clock_polarity = polarity;
+    /* write clock phase to crtlr0 register
+     * write clock polarity to crtlr0 register */
+    ctrlr0.field.serial_clock_phase = phase;
+    ctrlr0.field.serial_clock_polarity = polarity;
+
+    To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->val = ctrlr0.val;
     
     /* check setting */
-    if ((To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->field.serial_clock_phase != phase) | \
+    if ((To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->field.serial_clock_phase != phase) || \
         (To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->field.serial_clock_polarity != polarity))
         return false;
 
@@ -466,6 +472,8 @@ static uint16_t sg2002_spi_check_fifo_depth(struct sg2002_spi_priv_s *priv) {
 
         priv->fifo_depth = (depth == 1) ? 0 : depth;
         SG2002_SPI_TraceOut("spi fifo depth %d\n", priv->fifo_depth);
+
+        To_SG2002_TxFtlr_Reg(spi_reg->txftlr)->field.txftlr = 0;
     }
 
     return depth;
@@ -705,6 +713,8 @@ static uint32_t sg2002_spi_send_word(FAR struct spi_dev_s *dev, uint32_t wd) {
  
     sg2002_spi_transmit(priv);
 
+    SG2002_SPI_TraceOut("Tx 0x%08X Rx 0x%08X\n", tx_data, rx_data);
+
     return rx_data;
 }
 
@@ -766,16 +776,20 @@ struct spi_dev_s *sg2002_spibus_initialize(int port) {
     bool state = true;
 
     switch (port) {
-#ifdef CONFIG_SG2002_SPI1
-        case SG2002_SPI_1:
-            sg2002_pinmux_config(sg2002_pinmux_spi1);
-            priv = &sg2002_spi1_priv;
+#ifdef CONFIG_SG2002_SPI3
+        case SG2002_SPI_3:
+            if (!sg2002_pinmux_config(sg2002_pinmux_spi3))
+                return NULL;
+
+            priv = &sg2002_spi3_priv;
             break;
 #endif
 
 #ifdef CONFIG_SG2002_SPI2
         case SG2002_SPI_2:
-            sg2002_pinmux_config(sg2002_pinmux_spi2);
+            if (!sg2002_pinmux_config(sg2002_pinmux_spi2))
+                return NULL;
+
             priv = &sg2002_spi2_priv;
             break;
 #endif

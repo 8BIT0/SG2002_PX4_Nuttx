@@ -20,6 +20,8 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             return true;
         }
 
+#if defined (CONFIG_I2C)
+#if defined (CONFIG_SG2002_I2C1)
         case sg2002_pinmux_i2c1: {
             /* set i2c 1 sda pin */
             mmio_clrsetbits_32(SG2002_I2C1_AF_SDA_REG, 0x07, SG2002_SD1_D0_IIC1_SDA);
@@ -27,7 +29,8 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             mmio_clrsetbits_32(SG2002_I2C1_AF_SCL_REG, 0x07, SG2002_SD1_D3_IIC1_SCL);
             return true;
         }
-
+#endif
+#if defined (CONFIG_SG2002_I2C3)
         case sg2002_pinmux_i2c3:{
             /* set i2c 3 sda pin */
             mmio_clrsetbits_32(SG2002_I2C3_AF_SDA_REG, 0x07, SG2002_SD1_CLK_IIC3_SDA);
@@ -35,7 +38,10 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             mmio_clrsetbits_32(SG2002_I2C3_AF_SCL_REG, 0x07, SG2002_SD1_CMD_IIC3_SCL);
             return true;
         }
+#endif
+#endif
 
+#if defined (CONFIG_SG2002_SPI2)
         case sg2002_pinmux_spi2: {
             /* set spi 2 clk  pin */
             mmio_clrsetbits_32(SG2002_SPI2_AF_SCK_REG, 0x07, SG2002_SD1_CLK_SPI2_SCK);
@@ -47,7 +53,9 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             mmio_clrsetbits_32(SG2002_SPI2_AF_CS_REG, 0x07, SG2002_SD1_D3_SPI2_CS);
             return true;
         }
+#endif
 
+#if defined (CONFIG_SG2002_SPI3)
         case sg2002_pinmux_spi3: {
             /* set spi 3 clk  pin */
             // mmio_clrsetbits_32();
@@ -59,7 +67,7 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             // mmio_clrsetbits_32();
             return false;
         }
-
+#endif
         default: return false;
     }
 

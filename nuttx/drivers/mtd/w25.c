@@ -388,6 +388,8 @@ static inline int w25_readid(struct w25_dev_s *priv)
         manufacturer, memory, capacity);
 
   /* Check for a valid manufacturer and memory type */
+  sg2002_trace_dirout("manufacturer 0x%02X\n", manufacturer);
+  sg2002_trace_dirout("memory       0x%02X\n", memory);
 
   if ((manufacturer == W25_JEDEC_WINBOND  ||
        manufacturer == W25_JEDEC_AMIC)    &&

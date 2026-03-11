@@ -5,8 +5,8 @@
 
 #define SG2002_SPI_REF_CLOCK                    187500000
 
-#define SG2002_SPI_1_BASE                       0x04190000ul
 #define SG2002_SPI_2_BASE                       0x041A0000ul
+#define SG2002_SPI_3_BASE                       0x041B0000ul
 
 #define SG2002_SPI_CTRLR0_REG_OFFSET            0x000 /* Control Register 0 */
 #define SG2002_SPI_CTRLR1_REG_OFFSET            0x004 /* Control Register 1 */

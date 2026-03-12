@@ -11,6 +11,7 @@
 #include <nuttx/config.h>
 
 #include "hardware/sg2002_memorymap.h"
+#include "hardware/sg2002_gpio.h"
 
 #define __raw_readw(a)                      (*(volatile unsigned short *)(a))
 #define __raw_readl(a)                      (*(volatile unsigned int *)(a))
@@ -55,7 +56,11 @@
 
 #if defined (CONFIG_SG2002_SPI2)
 /* spi2 reg */
+#if defined (CONFIG_SG2002_SPI2_SW_CS)
+#define SG2002_SPI2_CS_SW_REG               (SG2002_PINMUX_BASE + 0x74)     /* PA 29 */
+#else
 #define SG2002_SPI2_AF_CS_REG               (SG2002_PINMUX_BASE + 0xD0)
+#endif
 #define SG2002_SPI2_AF_SCK_REG              (SG2002_PINMUX_BASE + 0xE4)
 #define SG2002_SPI2_AF_MOSI_REG             (SG2002_PINMUX_BASE + 0xE0)
 #define SG2002_SPI2_AF_MISO_REG             (SG2002_PINMUX_BASE + 0xDC)
@@ -81,17 +86,17 @@
 #define SG2002_JTAG_CPU_TMS_AF_UART1_RX     6
 
 #if defined (CONFIG_I2C)
-    #if defined (CONFIG_SG2002_I2C1)
-        /* i2c1 reg val */
-        #define SG2002_SD1_D3_IIC1_SCL      2
-        #define SG2002_SD1_D0_IIC1_SDA      2
-    #endif
+#if defined (CONFIG_SG2002_I2C1)
+/* i2c1 reg val */
+#define SG2002_SD1_D3_IIC1_SCL              2
+#define SG2002_SD1_D0_IIC1_SDA              2
+#endif
 
-    #if defined (CONFIG_SG2002_I2C3)
-        /* i2c3 reg val */
-        #define SG2002_SD1_CMD_IIC3_SCL     2
-        #define SG2002_SD1_CLK_IIC3_SDA     2
-    #endif
+#if defined (CONFIG_SG2002_I2C3)
+/* i2c3 reg val */
+#define SG2002_SD1_CMD_IIC3_SCL             2
+#define SG2002_SD1_CLK_IIC3_SDA             2
+#endif
 #endif
 
 /* gpioa14 reg val */
@@ -102,11 +107,13 @@
 
 #if defined (CONFIG_SG2002_SPI2)
 /* spi2 reg val */
-    #if !defined (CONFIG_SG2002_SPI_SW_CS)
-        #define SG2002_SD1_D3_SPI2_CS_HW    1    /* hardware */
-    #else
-        #define SG2002_SD1_D3_SPI2_CS_SW    3   /* software */
-    #endif
+#if defined (CONFIG_SG2002_SPI2_SW_CS)
+#define SG2002_SPI2_CS_SW                   3   /* software */
+#define SG2002_SPI2_CS_SW_PORT              0   /* Port A */
+#define SG2002_SPI2_CS_SW_PIN               29  /* Pin 29 */
+#else
+#define SG2002_SD1_D3_SPI2_CS               1    /* hardware */
+#endif
 
 #define SG2002_SD1_CLK_SPI2_SCK             1
 #define SG2002_SD1_D0_SPI2_MISO             1
@@ -129,13 +136,13 @@ typedef enum {
 #endif
 
 #if defined (CONFIG_I2C)
-    #if defined (CONFIG_SG2002_I2C1)
-        sg2002_pinmux_i2c1,
-    #endif
+#if defined (CONFIG_SG2002_I2C1)
+    sg2002_pinmux_i2c1,
+#endif
 
-    #if defined (CONFIG_SG2002_I2C3)
-        sg2002_pinmux_i2c3,
-    #endif
+#if defined (CONFIG_SG2002_I2C3)
+    sg2002_pinmux_i2c3,
+#endif
 #endif
 } sg2002_pinmux_list;
 

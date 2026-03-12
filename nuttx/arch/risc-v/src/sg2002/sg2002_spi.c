@@ -169,7 +169,7 @@ static int32_t sg2002_spi_get_status(struct sg2002_spi_priv_s *priv, bool raw);
 static void sg2002_spi_cs_ctl(struct sg2002_spi_priv_s *priv, bool state);
 
 /* external function */
-static void sg2002_spi_select_dummy(FAR struct spi_dev_s *dev, uint32_t devid, bool selected);
+static void sg2002_spi_select_ext(FAR struct spi_dev_s *dev, uint32_t devid, bool selected);
 static uint32_t sg2002_spi_set_freq_dummy(FAR struct spi_dev_s *dev, uint32_t frequency);
 static void sg2002_spi_setbits_dummy(FAR struct spi_dev_s *dev, int nbits);
 static void sg2002_spi_set_mode_external(FAR struct spi_dev_s *dev, enum spi_mode_e mode);
@@ -184,7 +184,7 @@ static void sg2002_spi_receive_block_buff(FAR struct spi_dev_s *dev, void *rxbuf
 
 static const struct spi_ops_s sg2002_spi_ops = {
     .lock               = sg2002_spi_lock,
-    .select             = sg2002_spi_select_dummy,
+    .select             = sg2002_spi_select_ext,
     .setfrequency       = sg2002_spi_set_freq_dummy,
     .setmode            = sg2002_spi_set_mode_external,
     .setbits            = sg2002_spi_setbits_dummy,
@@ -480,10 +480,20 @@ static uint16_t sg2002_spi_check_fifo_depth(struct sg2002_spi_priv_s *priv) {
 }
 
 static void sg2002_spi_cs_ctl(struct sg2002_spi_priv_s *priv, bool state) {
-    volatile sg2002_spi_reg_TypeDef *spi_reg = SG2002_Priv_2_BaseReg(priv->config->base);
-    
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_spibus_base(priv->config->base))
         return;
+
+#if defined (CONFIG_SG2002_SPI2_SW_CS)
+    if (priv->config->base == SG2002_SPI_2_BASE)
+        return;
+#endif
+
+#if defined (CONFIG_SG2002_SPI3_SW_CS)
+    if (priv->config->base == SG2002_SPI_3_BASE)
+        return;
+#endif
+
+    volatile sg2002_spi_reg_TypeDef *spi_reg = SG2002_Priv_2_BaseReg(priv->config->base);
 
     To_SG2002_Ser_Reg(spi_reg->ser)->field.ser = state;
 }
@@ -654,8 +664,35 @@ static void sg2002_spi_transmit(struct sg2002_spi_priv_s *priv) {
 }
 
 /*********************************************************** external function section ***********************************************/
-static void sg2002_spi_select_dummy(FAR struct spi_dev_s *dev, uint32_t devid, bool selected) {
-    return;
+static void sg2002_spi_select_ext(FAR struct spi_dev_s *dev, uint32_t devid, bool selected) {
+    struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
+
+    if ((priv == NULL) || (priv->config == NULL) || \
+        !sg2002_check_spibus_base(priv->config->base) || \
+        (priv->refs == 0) || priv->in_proto)
+        return;
+
+#if defined (CONFIG_SG2002_SPI2_SW_CS)
+    sg2002_gpioset_t cs_pin = {
+        .field.port = SG2002_SPI2_CS_SW_PORT,
+        .field.pin = SG2002_SPI2_CS_SW_PIN,
+    };
+
+    if (priv->config->base == SG2002_SPI_2_BASE) {
+        sg2002_gpio_write(cs_pin, selected);
+    }
+#endif
+
+#if defined (CONFIG_SG2002_SPI3_SW_CS)
+    sg2002_gpioset_t cs_pin = {
+        .field.port = SG2002_SPI3_CS_SW_PORT,
+        .field.pin = SG2002_SPI3_CS_SW_PIN,
+    };
+
+    if (priv->config->base == SG2002_SPI_3_BASE) {
+        sg2002_gpio_write(cs_pin, state);
+    }
+#endif
 }
 
 static uint32_t sg2002_spi_set_freq_dummy(FAR struct spi_dev_s *dev, uint32_t frequency) {

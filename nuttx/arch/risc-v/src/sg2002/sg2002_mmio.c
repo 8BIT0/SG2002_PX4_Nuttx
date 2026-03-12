@@ -49,14 +49,21 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             mmio_clrsetbits_32(SG2002_SPI2_AF_MISO_REG, 0x07, SG2002_SD1_D0_SPI2_MISO);
             /* set spi 2 mosi pin */
             mmio_clrsetbits_32(SG2002_SPI2_AF_MOSI_REG, 0x07, SG2002_SD1_CMD_SPI2_MOSI);
-            /* set spi 2 cs pin */
-            mmio_clrsetbits_32(SG2002_SPI2_AF_CS_REG, 0x07, SG2002_SD1_D3_SPI2_CS);
+#if defined (CONFIG_SG2002_SPI_SW_CS)
+            /* use spi 2 cs pin (software) */
+            mmio_clrsetbits_32(SG2002_SPI2_AF_CS_REG, 0x07, SG2002_SD1_D3_SPI2_CS_SW);
+#else
+            /* set spi 2 cs pin (hardware) */
+            mmio_clrsetbits_32(SG2002_SPI2_AF_CS_REG, 0x07, SG2002_SD1_D3_SPI2_CS_HW);
+#endif
             return true;
         }
 #endif
 
 #if defined (CONFIG_SG2002_SPI3)
         case sg2002_pinmux_spi3: {
+            /* use software CS pin */
+
             /* set spi 3 clk  pin */
             // mmio_clrsetbits_32();
             /* set spi 3 miso pin */

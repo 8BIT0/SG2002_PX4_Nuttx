@@ -14,6 +14,10 @@ config SG2002_SPI2
     bool "spi2 enable"
     default n
 
+config SG2002_SPI2_SW_CS
+    bool "spi2 software cs"
+    default n
+
 config SG2002_SPI3
     bool "spi3 enable"
     default n

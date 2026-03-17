@@ -50,7 +50,8 @@ bool sg2002_pinmux_config(sg2002_pinmux_list index)
             /* set spi 2 mosi pin */
             mmio_clrsetbits_32(SG2002_SPI2_AF_MOSI_REG, 0x07, SG2002_SD1_CMD_SPI2_MOSI);
 #if defined (CONFIG_SG2002_SPI2_SW_CS)
-            mmio_clrsetbits_32(SG2002_SPI2_CS_SW_REG, 0x07, SG2002_SPI2_CS_SW_REG);
+            /* set spi 2 cs pin (software) */
+            mmio_clrsetbits_32(SG2002_SPI2_CS_SW_REG, 0x07, SG2002_SPI2_CS_SW_VAL);
 #else
             /* set spi 2 cs pin (hardware) */
             mmio_clrsetbits_32(SG2002_SPI2_AF_CS_REG, 0x07, SG2002_SD1_D3_SPI2_CS);

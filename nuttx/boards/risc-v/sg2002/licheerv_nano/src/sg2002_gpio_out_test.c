@@ -29,13 +29,13 @@ void board_autoled_on(int led) {
 }
 
 void board_userled(int led, bool state) {
-    sg2002_gpioset_t pa14;
+    sg2002_gpioset_t led_pin;
     UNUSED(led);
 
-    pa14.field.port = SG2002_GPIO0;
-    pa14.field.pin = 15;
+    led_pin.field.port = SG2002_GPIO0;
+    led_pin.field.pin = 15;
 
-    sg2002_gpio_write(pa14, state);
+    sg2002_gpio_write(led_pin, state);
 }
 
 

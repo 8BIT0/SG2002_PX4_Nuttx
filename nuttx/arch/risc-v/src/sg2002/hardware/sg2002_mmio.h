@@ -108,7 +108,7 @@
 #if defined (CONFIG_SG2002_SPI2)
 /* spi2 reg val */
 #if defined (CONFIG_SG2002_SPI2_SW_CS)
-#define SG2002_SPI2_CS_SW                   3   /* software */
+#define SG2002_SPI2_CS_SW_VAL               3   /* software */
 #define SG2002_SPI2_CS_SW_PORT              0   /* Port A */
 #define SG2002_SPI2_CS_SW_PIN               29  /* Pin 29 */
 #else

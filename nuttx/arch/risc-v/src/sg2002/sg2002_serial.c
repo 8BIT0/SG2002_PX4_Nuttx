@@ -177,7 +177,7 @@ static SG2002_Uart_TypeDef Console_Dev = {
     .irq                = SG2002_IRQ_UART1_BASE,
     .port_id            = sg2002_pinmux_uart1,
 #endif
-    .clock              = 24883200,
+    .clock              = 25000000, /* 25M */
     .baud               = 115200,
     .parity             = 0,    // unused
     .bits               = 0,    // unused

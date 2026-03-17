@@ -173,6 +173,22 @@ static void sg2002_gpio_set_int(sg2002_gpioset_t pin, bool en) {
     }
 }
 
+static uint8_t sg2002_gpio_get_dir(sg2002_gpioset_t pin) {
+    uint32_t mask = 0;
+    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
+
+    if (!sg2002_gpio_check_base(pin))
+        return;
+
+    mask = (1 << pin.field.pin);
+    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
+    
+    if (To_SG2002_GPIO_SWPortA_DDR_Reg_Ptr(port_reg->swporta_ddr)->val & mask)
+        return SG2002_GPIO_Output;
+
+    return SG2002_GPIO_Input;
+}
+
 static void sg2002_gpio_set_dir(sg2002_gpioset_t pin, uint8_t dir) {
     uint32_t mask = 0;
     volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
@@ -235,6 +251,10 @@ void sg2002_gpio_write(sg2002_gpioset_t pin, bool value) {
     if (!sg2002_gpio_check_base(pin))
         return;
 
+    /* set as output */
+    if (sg2002_gpio_get_dir(pin) == SG2002_GPIO_Input)
+        sg2002_gpio_set_dir(pin, SG2002_GPIO_Output);
+
     mask = (1 << pin.field.pin);
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
 
@@ -253,6 +273,10 @@ bool sg2002_gpio_read(sg2002_gpioset_t pin) {
 
     if (!sg2002_gpio_check_base(pin))
         return false;
+
+    /* set as input */
+    if (sg2002_gpio_get_dir(pin) == SG2002_GPIO_Output)
+        sg2002_gpio_set_dir(pin, SG2002_GPIO_Input);
 
     mask = (1 << pin.field.pin);
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
@@ -303,6 +327,7 @@ int sg2002_gpio_set_event(sg2002_gpioset_t pin, bool risingedge, bool fallingedg
 void sg2002_gpio_init(void) {
     /* set gpioa14 and gpioa15 as normal gpio */
     /* on licheerv nano hardware PA14 as system notification LED */
+
     // mmio_clrsetbits_32(SG2002_GPIO_A14_REG, 0x07, SG2002_GPIO_A14_REG_VAL);
     mmio_clrsetbits_32(SG2002_GPIO_A15_REG, 0x07, SG2002_GPIO_A15_REG_VAL);
 }

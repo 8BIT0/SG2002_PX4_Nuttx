@@ -44,7 +44,7 @@ int main(int argc, FAR char *argv[])
     // int fd;
     // int mb;
     // int io;
-    int exti;
+    // int exti;
 
     printf("Hello 8Bit!!\n");
     // fd = open("/dev/eeprom0", O_RDWR);
@@ -96,15 +96,15 @@ int main(int argc, FAR char *argv[])
 
     // close(io);
 
-    exti = open("/dev/test_exti", O_RDWR);
+    // exti = open("/dev/test_exti", O_RDWR);
 
-    if (exti < 0) {
-        printf("Faield to open /dev/test_exti error code %d\n", exti);
-    } else {
+    // if (exti < 0) {
+    //     printf("Faield to open /dev/test_exti error code %d\n", exti);
+    // } else {
 
-    }
+    // }
 
-    close(exti);
+    // close(exti);
     
     return 0;
 }

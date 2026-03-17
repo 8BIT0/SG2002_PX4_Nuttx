@@ -52,8 +52,8 @@ int sg2002_bringup(void) {
     if (!mtd) {
         sg2002_trace_dirout("W25 init failed\n");
         return -ENODEV;
-    }
-    sg2002_trace_dirout("W25 init success\n");
+    } else
+        sg2002_trace_dirout("W25 init success\n");
 #endif
 
 #endif
@@ -79,14 +79,14 @@ int sg2002_bringup(void) {
 
 #if defined(CONFIG_ARCH_HAVE_LEDS) && defined(CONFIG_USERLED)
 #if defined(CONFIG_USERLED_LOWER)
-    if (userled_lower_initialize("/dev/test_pin") < 0)
-        return -1;
+    // if (userled_lower_initialize("/dev/test_pin") < 0)
+    //     return -1;
 #endif
 #endif
 
 #if defined(CONFIG_ARCH_BUTTONS) && defined(CONFIG_ARCH_IRQBUTTONS)
-    if (btn_lower_initialize("/dev/test_exti") < 0)
-        return -1;
+    // if (btn_lower_initialize("/dev/test_exti") < 0)
+        // return -1;
 #endif
 
     /* init mailbox */

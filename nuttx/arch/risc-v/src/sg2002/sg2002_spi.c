@@ -175,7 +175,7 @@ static uint32_t sg2002_spi_set_freq_dummy(FAR struct spi_dev_s *dev, uint32_t fr
 static void sg2002_spi_setbits_dummy(FAR struct spi_dev_s *dev, int nbits);
 static void sg2002_spi_set_mode_external(FAR struct spi_dev_s *dev, enum spi_mode_e mode);
 static int sg2002_spi_lock(FAR struct spi_dev_s *dev, bool lock);
-static uint32_t sg2002_spi_send_word(FAR struct spi_dev_s *dev, uint32_t wd);
+static uint32_t sg2002_spi_send_byte(FAR struct spi_dev_s *dev, uint8_t wd);
 #if defined(CONFIG_SPI_EXCHANGE)
 static void sg2002_spi_exchange(struct spi_dev_s *dev, const void *txbuffer, void *rxbuffer, size_t nwords);
 #else
@@ -189,7 +189,7 @@ static const struct spi_ops_s sg2002_spi_ops = {
     .setfrequency       = sg2002_spi_set_freq_dummy,
     .setmode            = sg2002_spi_set_mode_external,
     .setbits            = sg2002_spi_setbits_dummy,
-    .send               = sg2002_spi_send_word,
+    .send               = sg2002_spi_send_byte,
 #ifdef CONFIG_SPI_EXCHANGE
     .exchange           = sg2002_spi_exchange,
 #else
@@ -473,8 +473,8 @@ static uint16_t sg2002_spi_check_fifo_depth(struct sg2002_spi_priv_s *priv) {
         priv->fifo_depth = (depth == 1) ? 0 : depth;
         SG2002_SPI_TraceOut("spi fifo depth %d\n", priv->fifo_depth);
 
-        To_SG2002_TxFtlr_Reg(spi_reg->txftlr)->field.txftlr = 0;
-        if (To_SG2002_TxFtlr_Reg(spi_reg->txftlr)->field.txftlr != 0)
+        To_SG2002_TxFtlr_Reg(spi_reg->txftlr)->field.txftlr = 7;
+        if (To_SG2002_TxFtlr_Reg(spi_reg->txftlr)->field.txftlr != 7)
             SG2002_SPI_TraceOut("spi fifo reset failed\n");
     }
 
@@ -578,7 +578,7 @@ static void sg2002_spi_tx(struct sg2002_spi_priv_s *priv) {
 static void sg2002_spi_rx(struct sg2002_spi_priv_s *priv) {
     volatile sg2002_spi_reg_TypeDef *spi_reg = SG2002_Priv_2_BaseReg(priv->config->base);
     uint32_t max_trans_size = 0;
-    uint16_t data_tmp = 0;
+    uint32_t data_tmp = 0;
 
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_spibus_base(priv->config->base))
         return;
@@ -600,6 +600,8 @@ static void sg2002_spi_rx(struct sg2002_spi_priv_s *priv) {
                     break;
             }
 
+            SG2002_SPI_TraceOut("spi rx 0x%02x \n", data_tmp);
+
             priv->rx_buf += (uint8_t)(priv->config->bit_len);
             priv->rx_len --;
         }
@@ -608,10 +610,52 @@ static void sg2002_spi_rx(struct sg2002_spi_priv_s *priv) {
     }
 }
 
+static int sg2002_spi_delay_to_ns(uint32_t _delay, struct sg2002_spi_priv_s *priv) {
+    uint32_t hz = 0;
+
+    /* clock cycles need to be obtained from spi_transfer */
+    if (!priv)
+        return -1;
+
+    /* if there is no effective speed know, then approximate
+        * by underestimating with half the requested hz
+        */
+    hz = priv->config->clock / 2;
+
+    if (!hz)
+        return -1;
+
+    _delay *= (1000000000 + hz -1) / hz;
+
+    return _delay;
+}
+
+static void sg2002_spi_transfer_delay_ns(uint32_t ns) {
+    if (!ns)
+            return;
+            
+    if (ns <= 1000) {
+        up_udelay(1);
+    } else {
+        up_udelay((ns + 999) / 1000);
+    }
+}
+
+static int sg2002_spi_delay(uint32_t _delay, struct sg2002_spi_priv_s *priv) {
+    _delay = sg2002_spi_delay_to_ns(_delay, priv);
+    if (_delay < 0)
+            return _delay;
+
+    sg2002_spi_transfer_delay_ns(_delay);
+
+    return 0;
+}
+
 static void sg2002_spi_transmit(struct sg2002_spi_priv_s *priv) {
     volatile sg2002_spi_reg_TypeDef *spi_reg = SG2002_Priv_2_BaseReg(priv->config->base);
     SG2002_Ctrlr0_Reg ctrlr0_tmp;
     uint8_t bit_size = 0;
+    uint32_t delay_ns = 0;
 
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_spibus_base(priv->config->base))
         return;
@@ -648,12 +692,11 @@ static void sg2002_spi_transmit(struct sg2002_spi_priv_s *priv) {
 
     bit_size = priv->config->bit_len * 8;
 
-    up_udelay(10);
-
     do {
         sg2002_spi_tx(priv);
 
-        up_udelay(1);
+        delay_ns = bit_size * (priv->rx_len - priv->tx_len);
+        sg2002_spi_delay(delay_ns, priv);
 
         sg2002_spi_rx(priv);
 
@@ -718,8 +761,6 @@ static void sg2002_spi_set_mode_external(FAR struct spi_dev_s *dev, enum spi_mod
         (priv->refs == 0) || priv->in_proto)
         return;
 
-    SG2002_SPI_TraceOut("spi external set mode\n");
-
     switch ((uint8_t) mode)
     {
         case SPIDEV_MODE0: priv->config->mode = SG2002_SPI_Mode0; break;
@@ -742,10 +783,10 @@ static int sg2002_spi_lock(FAR struct spi_dev_s *dev, bool lock) {
     return nxsem_post(&priv->exclsem);
 }
 
-static uint32_t sg2002_spi_send_word(FAR struct spi_dev_s *dev, uint32_t wd) {
+static uint32_t sg2002_spi_send_byte(FAR struct spi_dev_s *dev, uint8_t wd) {
     struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
-    uint32_t rx_data = 0;
-    uint32_t tx_data = wd;
+    uint8_t rx_data = 0;
+    uint8_t tx_data = wd;
 
     if ((priv == NULL) || (priv->config == NULL) || \
         !sg2002_check_spibus_base(priv->config->base) || (priv->refs == 0))

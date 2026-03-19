@@ -715,34 +715,6 @@ static void sg2002_spi_transmit(struct sg2002_spi_priv_s *priv) {
 
 /*********************************************************** external function section ***********************************************/
 static void sg2002_spi_select_ext(FAR struct spi_dev_s *dev, uint32_t devid, bool selected) {
-    struct sg2002_spi_priv_s *priv = (struct sg2002_spi_priv_s *)dev;
-
-    if ((priv == NULL) || (priv->config == NULL) || \
-        !sg2002_check_spibus_base(priv->config->base) || \
-        (priv->refs == 0) || priv->in_proto)
-        return;
-
-#if defined (CONFIG_SG2002_SPI2_SW_CS)
-    sg2002_gpioset_t cs_pin = {
-        .field.port = 0,//SG2002_SPI2_CS_SW_PORT,
-        .field.pin = 15,//SG2002_SPI2_CS_SW_PIN,
-    };
-
-    if (priv->config->base == SG2002_SPI_2_BASE) {
-        sg2002_gpio_write(cs_pin, !selected);
-    }
-#endif
-
-#if defined (CONFIG_SG2002_SPI3_SW_CS)
-    sg2002_gpioset_t cs_pin = {
-        .field.port = SG2002_SPI3_CS_SW_PORT,
-        .field.pin = SG2002_SPI3_CS_SW_PIN,
-    };
-
-    if (priv->config->base == SG2002_SPI_3_BASE) {
-        sg2002_gpio_write(cs_pin, !selected);
-    }
-#endif
 }
 
 static uint32_t sg2002_spi_set_freq_dummy(FAR struct spi_dev_s *dev, uint32_t frequency) {
@@ -856,132 +828,6 @@ static void sg2002_spi_receive_block_buff(FAR struct spi_dev_s *dev, void *rxbuf
 }
 #endif
 
-static void sg2002_spi_show_all_reg(int port) {
-    struct sg2002_spi_priv_s *priv = NULL;
-    volatile sg2002_spi_reg_TypeDef *spi_reg = NULL;
-    
-    switch (port) {
-#if defined CONFIG_SG2002_SPI3
-        case SG2002_SPI_3: priv = &sg2002_spi2_priv; break;
-#endif
-
-#if defined CONFIG_SG2002_SPI2
-        case SG2002_SPI_2: priv = &sg2002_spi2_priv; break;
-#endif
-        default: return;
-    }
-
-    spi_reg = SG2002_Priv_2_BaseReg(priv->config->base);
-
-    SG2002_Ctrlr0_Reg ctrlr0;
-    SG2002_Ctrlr1_Reg ctrlr1;
-    SG2002_SpiEnr_Reg enr;
-    SG2002_Ser_Reg ser;
-    SG2002_Baudr_Reg baudr;
-    SG2002_TxFtlr_Reg txftlr;
-    SG2002_RxFtlr_Reg rxftlr;
-    SG2002_TxFlr_Reg txflr;
-    SG2002_RxFlr_Reg rxflr;
-    SG2002_Sr_Reg sr;
-    SG2002_Imr_Reg imr;
-    SG2002_Isr_Reg isr;
-    SG2002_Risr_Reg risr;
-
-    ctrlr0.val = To_SG2002_Ctrlr0_Reg(spi_reg->ctrlr0)->val;
-    ctrlr1.val = To_SG2002_Ctrlr1_Reg(spi_reg->ctrlr1)->val;
-    enr.val = To_SG2002_SpiEnr_Reg(spi_reg->enr)->val;
-    ser.val = To_SG2002_Ser_Reg(spi_reg->ser)->val;
-    baudr.val = To_SG2002_Baudr_Reg(spi_reg->baudr)->val;
-    txftlr.val = To_SG2002_TxFtlr_Reg(spi_reg->txftlr)->val;
-    rxftlr.val = To_SG2002_RxFtlr_Reg(spi_reg->rxftlr)->val;
-    txflr.val = To_SG2002_TxFlr_Reg(spi_reg->txflr)->val;
-    rxflr.val = To_SG2002_RxFlr_Reg(spi_reg->rxflr)->val;
-    sr.val = To_SG2002_Sr_Reg(spi_reg->sr)->val;
-    imr.val = To_SG2002_Imr_Reg(spi_reg->imr)->val;
-    isr.val = To_SG2002_Isr_Reg(spi_reg->isr)->val;
-    risr.val = To_SG2002_Risr_Reg(spi_reg->risr)->val;
-
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("CTRLR0 0x%08x\n", ctrlr0.val);
-    SG2002_SPI_TraceOut("------ data frame size ------- \t %d\n", ctrlr0.field.data_frame_size);
-    SG2002_SPI_TraceOut("------ frame format ---------- \t %d\n", ctrlr0.field.frame_format);
-    SG2002_SPI_TraceOut("------ phase ----------------- \t %d\n", ctrlr0.field.serial_clock_phase);
-    SG2002_SPI_TraceOut("------ polarity -------------- \t %d\n", ctrlr0.field.serial_clock_polarity);
-    SG2002_SPI_TraceOut("------ transfer mode --------- \t %d\n", ctrlr0.field.transfer_mode);
-    SG2002_SPI_TraceOut("------ slave mode ------------ \t %d\n", ctrlr0.field.slave_mode_bit);
-    SG2002_SPI_TraceOut("------ shift reg loop -------- \t %d\n", ctrlr0.field.shift_register_loop);
-    SG2002_SPI_TraceOut("------ control frame size ---- \t %d\n", ctrlr0.field.control_frame_size);
-
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("CTROL1 0x%08x\n", ctrlr1.val);
-    SG2002_SPI_TraceOut("------ ctrlr1 ---------------- \t %d\n", ctrlr1.field.ctrlr1);
-    
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("SSIENR 0x%08x\n", enr.val);
-    SG2002_SPI_TraceOut("------ spi enr --------------- \t %d\n", enr.field.spienr);
-    
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("SER    0x%08x\n", ser.val);
-    SG2002_SPI_TraceOut("------ ser ------------------- \t %d\n", ser.field.ser);
-
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("BAUDR  0x%08x\n", baudr.val);
-    SG2002_SPI_TraceOut("------ baudr ----------------- \t %d\n", baudr.field.baudr);
-
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("TXFTLR 0x%08x\n", txftlr.val);
-    SG2002_SPI_TraceOut("------ txftlr ---------------- \t %d\n", txftlr.field.txftlr);
-    
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("RXFTLR 0x%08x\n", rxftlr.val);
-    SG2002_SPI_TraceOut("------ rxftlr ---------------- \t %d\n", rxftlr.field.rxftlr);
-
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("TXFLR  0x%08x\n", txflr.val);
-    SG2002_SPI_TraceOut("------ txflr ----------------- \t %d\n", txflr.field.txflr);
-    
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("RXFLR  0x%08x\n", rxflr.val);
-    SG2002_SPI_TraceOut("------ rxflr ----------------- \t %d\n", rxflr.field.rxflr);
-    
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("SR     0x%08x\n", sr.val);
-    SG2002_SPI_TraceOut("------ busy ------------------ \t %d\n", sr.field.busy);
-    SG2002_SPI_TraceOut("------ tx fifo no empty ------ \t %d\n", sr.field.transmit_fifo_not_empty);
-    SG2002_SPI_TraceOut("------ tx fifo empty --------- \t %d\n", sr.field.transmit_fifo_empty);
-    SG2002_SPI_TraceOut("------ rx fifo no empty ------ \t %d\n", sr.field.receive_fifo_not_empty);
-    SG2002_SPI_TraceOut("------ rx fifo full ---------- \t %d\n", sr.field.receive_fifo_full);
-    SG2002_SPI_TraceOut("------ transmit error -------- \t %d\n", sr.field.transmission_error);
-    SG2002_SPI_TraceOut("------ data colision error --- \t %d\n", sr.field.data_collision_error);
-
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("IMR    0x%08x\n", imr.val);
-    SG2002_SPI_TraceOut("-- tx fifo empty int mask ---- \t %d\n", imr.field.transmit_fifo_empty_int_mask);
-    SG2002_SPI_TraceOut("-- tx fifo overflow int mask - \t %d\n", imr.field.transmit_fifo_overflow_int_mask);
-    SG2002_SPI_TraceOut("- rx fifo underflow int mask - \t %d\n", imr.field.receive_fifo_underflow_int_mask);
-    SG2002_SPI_TraceOut("-- rx fifo overflow int mask - \t %d\n", imr.field.receive_fifo_overflow_int_mask);
-    SG2002_SPI_TraceOut("-- rx fifo full int mask ----- \t %d\n", imr.field.receive_fifo_full_int_mask);
-    SG2002_SPI_TraceOut("-- multi master -------------- \t %d\n", imr.field.multi_master);
-
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("ISR    0x%08x\n", isr.val);
-    SG2002_SPI_TraceOut("---- tx fifo empty int ------- \t %d\n", isr.field.transmit_fifo_empty_int_status);
-    SG2002_SPI_TraceOut("---- tx fifo overflow int ---- \t %d\n", isr.field.transmit_fifo_overflow_int_status);
-    SG2002_SPI_TraceOut("---- rx fifo underflow int --- \t %d\n", isr.field.receive_fifo_underflow_int_status);
-    SG2002_SPI_TraceOut("---- rx fifo overflow int ---- \t %d\n", isr.field.receive_fifo_overflow_int_status);
-    SG2002_SPI_TraceOut("---- rx fifo full int -------- \t %d\n", isr.field.receive_fifo_full_int_status);
-    SG2002_SPI_TraceOut("---- multi master int -------- \t %d\n", isr.field.multi_master_contention_int_status);
-
-    SG2002_SPI_TraceOut("---------------------------------------\n");
-    SG2002_SPI_TraceOut("RISR   0x%08x\n", risr.val);
-    SG2002_SPI_TraceOut("---- tx fifo empty int ------- \t %d\n", risr.field.transmit_fifo_empty_raw_int_status);
-    SG2002_SPI_TraceOut("---- tx overflow int --------- \t %d\n", risr.field.transmit_fifo_overflow_raw_int_status);
-    SG2002_SPI_TraceOut("---- rx underflow int -------- \t %d\n", risr.field.receive_fifo_underflow_raw_int_status);
-    SG2002_SPI_TraceOut("---- rx fifo overflow -------- \t %d\n", risr.field.receive_fifo_overflow_raw_int_status);
-    SG2002_SPI_TraceOut("---- tx fifo full ------------ \t %d\n", risr.field.transmit_fifo_full_raw_int_status);
-    SG2002_SPI_TraceOut("---- tx contemtion ----------- \t %d\n", risr.field.transmit_contention_raw_int_status);
-}
-
 struct spi_dev_s *sg2002_spibus_initialize(int port) {
     struct sg2002_spi_priv_s *priv = NULL;
     bool state = true;
@@ -991,10 +837,6 @@ struct spi_dev_s *sg2002_spibus_initialize(int port) {
         case SG2002_SPI_3: {
             if (!sg2002_pinmux_config(sg2002_pinmux_spi3))
                 return NULL;
-
-#if defined CONFIG_SG2002_SPI3_SW_CS
-            /* set cs pin high */
-#endif
 
             priv = &sg2002_spi3_priv;
             break;
@@ -1006,15 +848,6 @@ struct spi_dev_s *sg2002_spibus_initialize(int port) {
             if (!sg2002_pinmux_config(sg2002_pinmux_spi2))
                 return NULL;
 
-#if defined CONFIG_SG2002_SPI2_SW_CS
-            /* set cs pin high */
-            sg2002_gpioset_t cs_pin = {
-                .field.port = 0,//SG2002_SPI2_CS_SW_PORT,
-                .field.pin = 15,//SG2002_SPI2_CS_SW_PIN,
-            };
-        
-            sg2002_gpio_write(cs_pin, true);
-#endif
             priv = &sg2002_spi2_priv;
             break;
         }
@@ -1054,9 +887,6 @@ struct spi_dev_s *sg2002_spibus_initialize(int port) {
     }
 
     priv->refs ++;
-
-    /* show all register */
-    // sg2002_spi_show_all_reg(port);
 
     /* init semaphore */
     nxsem_init(&priv->exclsem, 0, 1);

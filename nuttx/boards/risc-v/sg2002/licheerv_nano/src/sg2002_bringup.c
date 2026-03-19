@@ -23,10 +23,6 @@
 
 #include "sg200x.h"
 
-#if defined(CONFIG_MTD_W25)
-#include <nuttx/mtd/mtd.h>
-#endif
-
 #if defined(CONFIG_I2C) && defined(CONFIG_SYSTEM_I2CTOOL)
 static struct i2c_master_s *sg2002_i2c_register(int bus) {
     struct i2c_master_s *i2c = sg2002_i2cbus_initialize(bus);
@@ -46,16 +42,6 @@ int sg2002_bringup(void) {
     struct spi_dev_s *spi_dev = NULL;
 
     spi_dev = sg2002_spibus_initialize(2);
-
-#if defined(CONFIG_MTD_W25)
-    struct mtd_dev_s *mtd = w25_initialize(spi_dev);
-    if (!mtd) {
-        sg2002_trace_dirout("W25 init failed\n");
-        return -ENODEV;
-    } else
-        sg2002_trace_dirout("W25 init success\n");
-#endif
-
 #endif
 
 #if defined(CONFIG_I2C) && defined(CONFIG_SYSTEM_I2CTOOL)
@@ -79,14 +65,14 @@ int sg2002_bringup(void) {
 
 #if defined(CONFIG_ARCH_HAVE_LEDS) && defined(CONFIG_USERLED)
 #if defined(CONFIG_USERLED_LOWER)
-    // if (userled_lower_initialize("/dev/test_pin") < 0)
-    //     return -1;
+    if (userled_lower_initialize("/dev/test_pin") < 0)
+        return -1;
 #endif
 #endif
 
 #if defined(CONFIG_ARCH_BUTTONS) && defined(CONFIG_ARCH_IRQBUTTONS)
-    // if (btn_lower_initialize("/dev/test_exti") < 0)
-        // return -1;
+    if (btn_lower_initialize("/dev/test_exti") < 0)
+        return -1;
 #endif
 
     /* init mailbox */

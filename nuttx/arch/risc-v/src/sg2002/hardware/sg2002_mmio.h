@@ -56,11 +56,7 @@
 
 #if defined (CONFIG_SG2002_SPI2)
 /* spi2 reg */
-#if defined (CONFIG_SG2002_SPI2_SW_CS)
-#define SG2002_SPI2_CS_SW_REG               (SG2002_PINMUX_BASE + 0x74)     /* PA 29 */
-#else
 #define SG2002_SPI2_AF_CS_REG               (SG2002_PINMUX_BASE + 0xD0)
-#endif
 #define SG2002_SPI2_AF_SCK_REG              (SG2002_PINMUX_BASE + 0xE4)
 #define SG2002_SPI2_AF_MOSI_REG             (SG2002_PINMUX_BASE + 0xE0)
 #define SG2002_SPI2_AF_MISO_REG             (SG2002_PINMUX_BASE + 0xDC)
@@ -107,14 +103,7 @@
 
 #if defined (CONFIG_SG2002_SPI2)
 /* spi2 reg val */
-#if defined (CONFIG_SG2002_SPI2_SW_CS)
-#define SG2002_SPI2_CS_SW_VAL               3   /* software */
-#define SG2002_SPI2_CS_SW_PORT              0   /* Port A */
-#define SG2002_SPI2_CS_SW_PIN               29  /* Pin 29 */
-#else
-#define SG2002_SD1_D3_SPI2_CS               1    /* hardware */
-#endif
-
+#define SG2002_SD1_D3_SPI2_CS               1
 #define SG2002_SD1_CLK_SPI2_SCK             1
 #define SG2002_SD1_D0_SPI2_MISO             1
 #define SG2002_SD1_CMD_SPI2_MOSI            1

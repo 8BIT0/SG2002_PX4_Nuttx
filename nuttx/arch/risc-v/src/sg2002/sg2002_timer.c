@@ -22,6 +22,9 @@
 
 #ifdef CONFIG_TIMER
 
+#define SG2002_Timer_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
+// #define SG2002_Timer_TraceOut(fmt, ...)
+
 #define To_SG2002_SingleTimerReg_Ptr(x)     (sg2002_timer_reg *)((uintptr_t)x)
 
 #define sg2002_timer_control_reg            volatile SG2002_TimerControlReg_TypeDef
@@ -250,6 +253,9 @@ static int sg2002_timer_start(FAR struct timer_lowerhalf_s *lower) {
     timer->load_count = SG2002_TIMER_FREQ / priv->freq;
     state &= sg2002_timer_set_load_count(timer, timer->load_count);
 
+    SG2002_Timer_TraceOut("Timer freqeunce %d\n", priv->freq);
+    SG2002_Timer_TraceOut("Timer load count %d\n", priv->load_count);
+
     /* set mode */
     state &= sg2002_timer_free_mode_ctl(timer, true);
 
@@ -261,6 +267,8 @@ static int sg2002_timer_start(FAR struct timer_lowerhalf_s *lower) {
 
     if (!state)
         return -1;
+
+    SG2002_Timer_TraceOut("timer start\n");
 
     return 0;
 }
@@ -292,11 +300,11 @@ static int sg2002_timer_ioctl(FAR struct timer_lowerhalf_s *lower, int cmd, unsi
         return -1; 
 
     switch (cmd) {
-        case SG2002_Timer_Set_Freq: priv->freq = arg; break;
+        case SG2002_Timer_Set_Freq: priv->freq = (uint32_t)arg; break;
         default: return -1;
     }
 
-    return -1;
+    return 0;
 }
 
 static int sg2002_timer_set_callback(FAR struct timer_lowerhalf_s *lower, CODE tccb_t callback, FAR void *arg) {
@@ -305,7 +313,7 @@ static int sg2002_timer_set_callback(FAR struct timer_lowerhalf_s *lower, CODE t
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_timer_base(priv->config->base))
         return -1;
 
-    priv->callback = (tccb_t)arg;
+    priv->callback = (tccb_t)callback;
     priv->callback_arg = (void *)arg;
 
     return 0;

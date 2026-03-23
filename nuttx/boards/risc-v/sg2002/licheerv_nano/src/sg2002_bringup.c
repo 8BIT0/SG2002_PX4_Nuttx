@@ -34,14 +34,41 @@ static struct i2c_master_s *sg2002_i2c_register(int bus) {
 }
 #endif
 
+#if defined(CONFIG_TIMER)
+bool Timer_TestCallback(FAR uint32_t *next_interval_us, FAR void *arg) {
+    sg2002_trace_dirout("timer 6 test\n");
+    return true;
+}
+#endif
+
 int sg2002_bringup(void) {
 
 	sg2002_gpio_init();
+
+#if defined(CONFIG_TIMER)
+    // struct timer_lowerhalf_s *timer_dev = NULL;
+    
+    // timer_dev = sg2002_timer_initialize(6);
+
+    // if (timer_dev && timer_dev->ops && timer_dev->ops->ioctl && timer_dev->ops->setcallback) {
+    //     timer_dev->ops->ioctl(timer_dev, SG2002_Timer_Set_Freq, 10); /* set timer freq 10Hz */
+    //     timer_dev->ops->setcallback(timer_dev, Timer_TestCallback, NULL);
+    // }
+#endif
 
 #if defined(CONFIG_SG2002_SPI2)
     struct spi_dev_s *spi_dev = NULL;
 
     spi_dev = sg2002_spibus_initialize(2);
+
+    uint8_t test_tx[4] = {0x9F, 0x00, 0x00, 0x00};
+    uint8_t test_rx[4] = {0x00, 0x00, 0x00, 0x00};
+
+    spi_dev->ops->exchange(spi_dev, test_tx, test_rx, sizeof(test_tx));
+    
+    for (uint8_t i = 0; i < 4; i ++) {
+        sg2002_trace_dirout("spi rx %d 0x%02X\n", i, test_rx[i]);
+    }
 #endif
 
 #if defined(CONFIG_I2C) && defined(CONFIG_SYSTEM_I2CTOOL)

@@ -80,8 +80,6 @@
 #define To_SG2002_Data_Reg(x)               ((SG2002_Data_Reg        *)((uintptr_t)&(x)))
 #define To_SG2002_RxSampleDly_Reg(x)        ((SG2002_RxSampleDly_Reg *)((uintptr_t)&(x)))
 
-#define reg_t volatile uint32_t
-
 typedef struct {
     reg_t ctrlr0;           /* 0x00 */
     reg_t ctrlr1;           /* 0x04 */
@@ -321,8 +319,6 @@ static bool sg2002_spi_set_clock(struct sg2002_spi_priv_s *priv) {
 
     /* set baud register */
     To_SG2002_Baudr_Reg(spi_reg->baudr)->field.baudr = clk_div;
-
-    // SG2002_SPI_TraceOut("SPI clock %d div %d \n", priv->speed_hz, clk_div);
 
     /* setting failed */
     if (To_SG2002_Baudr_Reg(spi_reg->baudr)->field.baudr != clk_div)

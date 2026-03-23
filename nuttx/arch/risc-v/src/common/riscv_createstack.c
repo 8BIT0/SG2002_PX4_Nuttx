@@ -244,9 +244,5 @@ void riscv_stack_color(void *stackbase, size_t nbytes)
     {
       *stkptr++ = STACK_COLOR;
     }
-
-    volatile uint8_t test = 0;
-    test++;
-
 }
 #endif

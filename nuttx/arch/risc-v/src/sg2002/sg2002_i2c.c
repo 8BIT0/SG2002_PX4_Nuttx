@@ -94,8 +94,6 @@
 #define To_SG2002_Sda_Setup_Reg_Ptr(x)      ((SG2002_Sda_Setup_Reg      *)((uintptr_t)&(x)))
 #define To_SG2002_Fs_Spklen_Reg_Ptr(x)      ((SG2002_Fs_Spklen_Reg      *)((uintptr_t)&(x)))
 
-#define reg_t volatile uint32_t
-
 typedef struct {
 	reg_t ic_con;               /* 0x00 */
 	reg_t ic_tar;               /* 0x04 */

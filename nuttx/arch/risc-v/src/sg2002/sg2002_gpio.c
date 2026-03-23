@@ -65,8 +65,6 @@ static SG2002_Config_Info_TypeDef SG2002_Conf[4] = {
     {SG2002_GPIO3_BASE, SG2002_IRQ_GPIO3_BASE, 0, SG2002_GPIO_Exti_Callback_List[3]}
 };
 
-typedef volatile uint32_t reg_t;
-
 #define SG2002_Port_2_BaseReg(x)                    (volatile sg2002_gpio_reg_TypeDef *)((uintptr_t)(x))
 
 #define To_SG2002_GPIO_SWPortA_DR_Reg_Ptr(x)        ((volatile SG2002_GPIO_SWPortA_DR_Reg_TyeDef        *)(uintptr_t)&(x))

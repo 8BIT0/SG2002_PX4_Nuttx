@@ -45,6 +45,8 @@
 
 #define SG2002_PRIM_HART  0
 
+#define reg_t volatile uint32_t
+
 #ifdef __ASSEMBLY__
 
 /****************************************************************************

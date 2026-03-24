@@ -20,6 +20,8 @@
 
 #include "sg200x.h"
 
+#include <math.h>
+
 #ifdef CONFIG_TIMER
 
 #define SG2002_Timer_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)

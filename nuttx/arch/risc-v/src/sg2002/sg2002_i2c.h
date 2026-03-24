@@ -7,9 +7,13 @@
 #include "chip.h"
 #include "hardware/sg2002_i2c.h"
 
+#if defined (CONFIG_I2C)
+
 struct i2c_master_s *sg2002_i2cbus_initialize(int port);
 
 int sg2002_i2cbus_uninitialize(struct i2c_master_s *dev);
+
+#endif
 
 #endif
 

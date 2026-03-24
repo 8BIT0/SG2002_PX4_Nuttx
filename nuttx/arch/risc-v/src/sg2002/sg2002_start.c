@@ -31,7 +31,6 @@
 #include <debug.h>
 
 #include <arch/board/board.h>
-#include <arch/board/board_memorymap.h>
 
 #include "riscv_internal.h"
 #include "chip.h"

@@ -21,6 +21,8 @@
 #include "hardware/sg2002_mmio.h"
 #include "sg200x.h"
 
+#if defined (CONFIG_I2C)
+
 // #define SG2002_I2C_TraceOut(fmt, ...)       sg2002_trace_dirout(fmt, ##__VA_ARGS__)
 #define SG2002_I2C_TraceOut(fmt, ...)
 
@@ -749,3 +751,4 @@ int sg2002_i2cbus_uninitialize(struct i2c_master_s *dev) {
     return -1;
 }
 
+#endif

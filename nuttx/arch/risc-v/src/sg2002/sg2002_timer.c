@@ -79,7 +79,7 @@ struct sg2002_timer_priv_s {
 static int sg2002_timer_start(FAR struct timer_lowerhalf_s *lower);
 static int sg2002_timer_stop(FAR struct timer_lowerhalf_s *lower);
 static int sg2002_timer_ioctl(FAR struct timer_lowerhalf_s *lower, int cmd, unsigned long arg);
-static int sg2002_timer_set_callback(FAR struct timer_lowerhalf_s *lower, CODE tccb_t callback, FAR void *arg);
+static void sg2002_timer_set_callback(FAR struct timer_lowerhalf_s *lower, CODE tccb_t callback, FAR void *arg);
 static int sg2002_timer_get_status_dummy(FAR struct timer_lowerhalf_s *lower, FAR struct timer_status_s *status);
 static int sg2002_timer_set_timeout_dummy(FAR struct timer_lowerhalf_s *lower, uint32_t timeou);
 static int sg2002_timer_max_timeout_dummy(FAR struct timer_lowerhalf_s *lower, FAR uint32_t *maxtimeou);
@@ -164,6 +164,13 @@ static bool sg2002_timer_reset(sg2002_timer_reg *timer_reg) {
     timer_reg->control_reg = 0;
 
     return false;
+}
+
+static bool sg2002_timer_get_intstatus(sg2002_timer_reg *timer_reg) {
+    if (timer_reg == NULL)
+        return false;
+
+    return To_SG2002_Timer_IntStatusReg_Ptr(timer_reg->int_status)->field.int_status;
 }
 
 static uint32_t sg2002_timer_get_load_count(sg2002_timer_reg *timer_reg) {
@@ -281,6 +288,8 @@ static int sg2002_timer_stop(FAR struct timer_lowerhalf_s *lower) {
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_timer_base(priv->config->base))
         return -1;
 
+    timer = To_SG2002_SingleTimerReg_Ptr(priv->config->base);
+
     /* set int mask */
     state &= sg2002_timer_int_mask_ctl(timer, true);
 
@@ -295,28 +304,32 @@ static int sg2002_timer_stop(FAR struct timer_lowerhalf_s *lower) {
 
 static int sg2002_timer_ioctl(FAR struct timer_lowerhalf_s *lower, int cmd, unsigned long arg) {
    struct sg2002_timer_priv_s *priv = (struct sg2002_timer_priv_s *)lower;
+    sg2002_timer_reg *timer = NULL;
 
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_timer_base(priv->config->base))
         return -1; 
+    
+    timer = To_SG2002_SingleTimerReg_Ptr(priv->config->base);
 
     switch (cmd) {
         case SG2002_Timer_Set_Freq: priv->freq = (uint32_t)arg; break;
+        case SG2002_Timer_Get_Current_CountVal: return sg2002_timer_get_current_count(timer);
+        case SG2002_Timer_Get_Current_LoadCount: return sg2002_timer_get_load_count(timer);
+        case SG2002_Timer_Check_IntStatus: return sg2002_timer_get_intstatus(timer);
         default: return -1;
     }
 
     return 0;
 }
 
-static int sg2002_timer_set_callback(FAR struct timer_lowerhalf_s *lower, CODE tccb_t callback, FAR void *arg) {
+static void sg2002_timer_set_callback(FAR struct timer_lowerhalf_s *lower, CODE tccb_t callback, FAR void *arg) {
     struct sg2002_timer_priv_s *priv = (struct sg2002_timer_priv_s *)lower;
 
     if ((priv == NULL) || (priv->config == NULL) || !sg2002_check_timer_base(priv->config->base))
-        return -1;
+        return;
 
     priv->callback = (tccb_t)callback;
     priv->callback_arg = (void *)arg;
-
-    return 0;
 }
 
 static int sg2002_timer_get_status_dummy(FAR struct timer_lowerhalf_s *lower, FAR struct timer_status_s *status) {

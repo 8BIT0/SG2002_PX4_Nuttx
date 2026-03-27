@@ -154,7 +154,7 @@ static bool sg2002_gpio_cfg_int(sg2002_gpioset_t pin, uint8_t int_type) {
     return true;
 }
 
-static void sg2002_gpio_set_int(sg2002_gpioset_t pin, bool en) {
+static bool sg2002_gpio_set_int(sg2002_gpioset_t pin, bool en) {
     uint32_t mask = 0;
     volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
 
@@ -169,6 +169,8 @@ static void sg2002_gpio_set_int(sg2002_gpioset_t pin, bool en) {
     } else {
         To_SG2002_GPIO_IntEn_Reg_Ptr(port_reg->int_en)->val &= ~mask;
     }
+
+    return true;
 }
 
 static uint8_t sg2002_gpio_get_dir(sg2002_gpioset_t pin) {
@@ -176,7 +178,7 @@ static uint8_t sg2002_gpio_get_dir(sg2002_gpioset_t pin) {
     volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
 
     if (!sg2002_gpio_check_base(pin))
-        return;
+        return SG2002_GPIO_Invalid;
 
     mask = (1 << pin.field.pin);
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
@@ -229,8 +231,8 @@ static int sg2002_gpio_irq_handle(int irq, void *context, void *arg) {
         if ((int_status & irq_set) & (1 << i)) {
             clr_bit |= 1 << i;
 
-            if (SG2002_Conf[port].irq_obj->func)
-                SG2002_Conf[port].irq_obj->func(irq, NULL, SG2002_Conf[port].irq_obj->arg);
+            if (SG2002_Conf[port].irq_obj[i].func)
+                SG2002_Conf[port].irq_obj[i].func(irq, NULL, SG2002_Conf[port].irq_obj[i].arg);
 
             SG2002_GPIO_TraceOut("EXTI on port %d pin %d\n", port, i);
         }
@@ -279,20 +281,17 @@ bool sg2002_gpio_read(sg2002_gpioset_t pin) {
     mask = (1 << pin.field.pin);
     port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
 
-    return ((To_SG2002_GPIO_EXT_PortA_Reg_Ptr(port_reg)->val & mask) != 0);
+    return ((To_SG2002_GPIO_EXT_PortA_Reg_Ptr(port_reg->ext_porta)->val & mask) != 0);
 }
 
 int sg2002_gpio_set_event(sg2002_gpioset_t pin, bool risingedge, bool fallingedge, bool event, xcpt_t func, void *arg) {
     uint8_t int_type = 0;
     uint32_t mask = 0;
-    volatile sg2002_gpio_reg_TypeDef *port_reg = NULL;
     UNUSED(event);
     
     /* check port or both set or both reset */
     if ((risingedge & fallingedge) || !(risingedge | fallingedge))
         return -1;
-
-    port_reg = SG2002_Port_2_BaseReg(SG2002_Conf[pin.field.port].base_addr);
 
     mask = (1 << pin.field.pin);
 

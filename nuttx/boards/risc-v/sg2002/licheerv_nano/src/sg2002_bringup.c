@@ -94,8 +94,6 @@ int sg2002_bringup(void) {
         return -1;
 #endif
 
-    fabsl(-1);
-
     /* init mailbox */
     struct mbox_dev_s *mbox_dev = sg2002_mailbox_initialize();
     if (mbox_dev != NULL) {

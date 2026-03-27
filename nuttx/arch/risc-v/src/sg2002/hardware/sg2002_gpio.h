@@ -23,6 +23,7 @@
 typedef enum {
     SG2002_GPIO_Input = 0,
     SG2002_GPIO_Output,
+    SG2002_GPIO_Invalid,
 } SG2002_GPIO_DirType_List;
 
 typedef enum {

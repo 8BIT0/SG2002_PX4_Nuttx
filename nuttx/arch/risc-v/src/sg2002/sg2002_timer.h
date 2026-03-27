@@ -11,6 +11,9 @@
 
 typedef enum {
     SG2002_Timer_Set_Freq,
+    SG2002_Timer_Get_Current_CountVal,
+    SG2002_Timer_Get_Current_LoadCount,
+    SG2002_Timer_Check_IntStatus
 } SG2002_TimerCMDList_TypeDef;
 
 struct timer_lowerhalf_s *sg2002_timer_initialize(int port);
